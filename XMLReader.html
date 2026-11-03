@@ -45,7 +45,7 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
 #ips-xml-widget textarea:read-only{background:#f8fafc}
 /* Compact context view: search + a single grouped tree with Amount column. */
 #ips-xml-widget .ix-amount,#ips-xml-widget .ix-amount-head{display:none}
-#ips-xml-widget.ix-compact{display:flex;flex-direction:column;width:100%;max-width:none;min-width:0;min-height:0;height:clamp(420px,68vh,1000px)}
+#ips-xml-widget.ix-compact{display:flex;flex-direction:column;width:100%!important;max-width:none!important;min-width:0;min-height:0;height:clamp(420px,68vh,1000px);align-self:stretch;justify-self:stretch}
 #ips-xml-widget.ix-compact .ix-loading{flex:none}
 #ips-xml-widget.ix-compact .ix-toolbar > :not(.ix-search):not([data-act=expand]):not([data-act=collapse]){display:none!important}
 #ips-xml-widget.ix-compact .ix-toolbar{padding:8px}
@@ -94,8 +94,24 @@ function status(s,error){var e=$('[data-part=status]');e.textContent=s;e.style.c
 function loading(stage,hint){var panel=$('[data-part=loading]');panel.classList.remove('ix-hidden');panel.setAttribute('aria-busy','true');$('[data-part=loading-label]').textContent=stage;$('[data-part=loading-hint]').textContent=hint||'Большие файлы могут обрабатываться дольше'}
 function loadingDone(){var panel=$('[data-part=loading]');panel.classList.add('ix-hidden');panel.setAttribute('aria-busy','false')}
 function afterPaint(){return new Promise(function(resolve){if(typeof requestAnimationFrame==='function')requestAnimationFrame(function(){setTimeout(resolve,0)});else setTimeout(resolve,0)})}
-function fitCompactWidth(){if(!compactMode)return;root.style.width='100%';root.style.maxWidth='none';var box=root.getBoundingClientRect(),p=root.parentElement;for(var i=0;p&&i<8;i++,p=p.parentElement){var bounds=p.getBoundingClientRect();if(bounds.width<=0)continue;var available=bounds.right-box.left-Math.max(8,parseFloat(getComputedStyle(p).paddingRight)||0);if(available>box.width+90){root.style.width=Math.floor(available)+'px';break}if(p.getAttribute('role')==='dialog')break}}
-function initCompactSizing(){if(!compactMode)return;fitCompactWidth();var parent=root.parentElement;if(typeof ResizeObserver==='function'&&parent){var observer=new ResizeObserver(fitCompactWidth);observer.observe(parent);if(parent.parentElement)observer.observe(parent.parentElement)}else window.addEventListener('resize',fitCompactWidth)}
+// ELMA365 can render a user widget inside an inline/shrink-to-fit wrapper.
+// Expand only the exclusive wrapper chain of this widget. Never change tabs,
+// columns, dialogs, or ancestors that also contain other form controls.
+function fitCompactWidth(){
+ if(!compactMode)return;
+ root.style.width='100%';root.style.maxWidth='none';root.style.minWidth='0';
+ var child=root,parent=root.parentElement,level=0;
+ while(parent&&level++<8){
+  if(parent.childElementCount!==1||parent.firstElementChild!==child)break;
+  if(parent.matches('[role="dialog"],[role="tabpanel"],[role="tablist"],.ant-modal,.ant-tabs,.modal'))break;
+  parent.style.setProperty('width','100%','important');
+  parent.style.setProperty('max-width','none','important');
+  parent.style.setProperty('min-width','0');
+  if(getComputedStyle(parent).display==='inline-block')parent.style.display='block';
+  child=parent;parent=parent.parentElement;
+ }
+}
+function initCompactSizing(){if(compactMode)fitCompactWidth()}
 function directChildren(node,name){return Array.prototype.filter.call(node.children||[],function(x){return x.localName===name})}
 function attr(n,k){return n.getAttribute(k)||''}
 // XmlSerializer may encode a derived Order as <Order> or <IpsObject xsi:type="Order">.
