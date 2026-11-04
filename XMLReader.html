@@ -23,7 +23,7 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
  data-elma-objectid="<%= Context.data.objectid == null ? '' : Context.data.objectid %>">
 <style>
 /* ---------- base ---------- */
-#ips-xml-widget{font:13px/1.45 Arial,sans-serif;color:#273443;background:#fff;border:1px solid #d8e0ea;border-radius:9px;overflow:hidden;min-height:540px}
+#ips-xml-widget{display:block;box-sizing:border-box;width:100%!important;max-width:none!important;min-width:0;font:13px/1.45 Arial,sans-serif;color:#273443;background:#fff;border:1px solid #d8e0ea;border-radius:9px;overflow:hidden;min-height:540px}
 #ips-xml-widget *{box-sizing:border-box}
 #ips-xml-widget button,#ips-xml-widget input,#ips-xml-widget textarea{font:inherit}
 #ips-xml-widget button{cursor:pointer;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:5px;padding:6px 10px}
@@ -218,8 +218,7 @@ function afterPaint(){return new Promise(function(resolve){if(typeof requestAnim
 // ELMA365 can render a user widget inside an inline/shrink-to-fit wrapper.
 // Expand only the exclusive wrapper chain of this widget. Never change tabs,
 // columns, dialogs, or ancestors that also contain other form controls.
-function fitCompactWidth(){
- if(!compactMode)return;
+function fitWidth(){
  root.style.width='100%';root.style.maxWidth='none';root.style.minWidth='0';
  var child=root,parent=root.parentElement,level=0;
  while(parent&&level++<8){
@@ -786,7 +785,7 @@ if(prefs.hideAttrs)setAttrsVisible(false);
 if(compactMode)root.classList.add('ix-compact');
 lockContextControls();
 switchTab();
-fitCompactWidth();
+fitWidth();
 if(compactMode&&!contextFilePresent)status('Для выбранного проекта или версии файл Context.data.xml не передан.',true);
 loadContextXml();
 })();
