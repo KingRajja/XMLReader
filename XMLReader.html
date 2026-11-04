@@ -81,8 +81,6 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
 #ips-xml-widget .ix-label mark{background:#fde68a;color:inherit;border-radius:2px;padding:0 1px}
 #ips-xml-widget .ix-count{flex:none;color:#64748b;font-size:11px;font-weight:normal}
 #ips-xml-widget .ix-tag{color:#7c3aed}
-#ips-xml-widget .ix-order-chip{flex:none;padding:1px 5px;border:1px solid #93c5fd;border-radius:4px;background:#dbeafe;color:#1e40af;font-size:10px;font-weight:700;line-height:1.5}
-#ips-xml-widget .ix-order-root .ix-order-chip{background:#e2e8f0;border-color:#cbd5e1;color:#334155}
 
 /* ---------- details ---------- */
 #ips-xml-widget .ix-detail-head{padding:10px 12px;border-bottom:1px solid #e2e8f0;font-weight:bold;overflow-wrap:anywhere}
@@ -468,7 +466,6 @@ function renderRow(row,i,isSel){
   var n=row.node;
   if(n.isOrder)line.classList.add(n.parent?'ix-order-nested':'ix-order-root');
   line.appendChild(iconEl(n.type));
-  if(n.isOrder){var chip=el('span','ix-order-chip',n.parent?'↳ Order':'Order');chip.title=n.parent?'Вложенный производственный заказ':'Корневой производственный заказ';line.appendChild(chip)}
   line.appendChild(highlighted(n.name,'ix-label'));
   if(n.children.length)line.appendChild(el('span','ix-count','('+n.children.length+')'));
   line.appendChild(amountCell(n));
