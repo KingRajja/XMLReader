@@ -287,8 +287,6 @@ function defaultOpenIps(){
  roots.forEach(function(r){s.add(groupKeyOf(r));s.add(nodeKey(r))});
  return s;
 }
-// "Свернуть": only the root rows remain, everything below is closed.
-function collapsedIps(){var s=new Set();roots.forEach(function(r){s.add(groupKeyOf(r))});return s}
 function expandedIps(){
  var s=new Set();
  nodes.forEach(function(n){s.add(groupKeyOf(n));if(n.children.length)s.add(nodeKey(n))});
@@ -307,7 +305,9 @@ function isOpen(row){return openSet().has(row.key)}
 function toggle(row){if(!row||!row.hasKids)return;var s=openSet();if(s.has(row.key))s.delete(row.key);else s.add(row.key);refresh()}
 function setOpen(row,open){if(!row||!row.hasKids||isOpen(row)===open)return;toggle(row)}
 function expandAll(){if(view==='xml')openXml=expandedXml();else openIps=expandedIps();refresh()}
-function collapseAll(){if(view==='xml')openXml=new Set();else openIps=collapsedIps();refresh()}
+// "Свернуть": everything is closed, including type groups — only the top-level group headers remain
+// (with grouping off: only the root nodes).
+function collapseAll(){if(view==='xml')openXml=new Set();else openIps=new Set();refresh()}
 
 /* ======================= search ======================= */
 function matchNode(n,q){
