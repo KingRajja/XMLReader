@@ -51,12 +51,22 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
 #ips-xml-widget .ix-stat.ix-stat-nested{background:#e0f2fe;color:#075985}
 
 /* ---------- layout ---------- */
-#ips-xml-widget .ix-layout{display:grid;grid-template-columns:minmax(250px,56%) minmax(230px,44%);height:590px;min-height:350px}
-#ips-xml-widget .ix-left{position:relative;overflow:auto;border-right:1px solid #cbd5e1;outline:none}
+#ips-xml-widget .ix-layout{display:grid;grid-template-columns:var(--ix-left-w,56%) 7px minmax(0,1fr);height:590px;min-height:350px}
+#ips-xml-widget .ix-left{position:relative;overflow:auto;min-width:0;outline:none}
+/* draggable splitter between tree and attributes */
+#ips-xml-widget .ix-splitter{position:relative;cursor:col-resize;background:#f1f5f9;border-left:1px solid #cbd5e1;border-right:1px solid #e2e8f0;touch-action:none;outline:none}
+#ips-xml-widget .ix-splitter::after{content:'';position:absolute;left:1px;top:50%;width:3px;height:28px;margin-top:-14px;border-left:1px dotted #94a3b8;border-right:1px dotted #94a3b8}
+#ips-xml-widget .ix-splitter:hover,#ips-xml-widget .ix-splitter:focus-visible,#ips-xml-widget.ix-resizing .ix-splitter{background:#bfdbfe}
+#ips-xml-widget.ix-resizing,#ips-xml-widget.ix-resizing *{cursor:col-resize!important;user-select:none!important}
+/* attributes panel hidden */
+#ips-xml-widget.ix-no-attrs .ix-layout{grid-template-columns:minmax(0,1fr)}
+#ips-xml-widget.ix-no-attrs .ix-right,#ips-xml-widget.ix-no-attrs .ix-splitter{display:none}
 #ips-xml-widget .ix-left:focus-visible{box-shadow:inset 0 0 0 2px #93c5fd}
 #ips-xml-widget .ix-right{overflow:auto}
 #ips-xml-widget .ix-heading{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;height:36px;padding:0 12px;background:#f1f5f9;border-bottom:1px solid #dce4ed;font-weight:bold}
 #ips-xml-widget .ix-heading button{padding:1px 7px;font-weight:normal}
+#ips-xml-widget .ix-heading>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ips-xml-widget .ix-heading button{flex:none}
 
 /* ---------- tree rows (fixed height => virtual scrolling) ---------- */
 #ips-xml-widget [data-part=tree]{position:relative}
@@ -121,7 +131,7 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
 #ips-xml-widget.ix-compact .ix-toolbar > :not(.ix-search):not([data-act=expand]):not([data-act=collapse]){display:none!important}
 #ips-xml-widget.ix-compact .ix-toolbar button{flex:0 0 auto;white-space:nowrap}
 #ips-xml-widget.ix-compact .ix-search{min-width:110px;width:100%;flex:1}
-#ips-xml-widget.ix-compact .ix-tabs,#ips-xml-widget.ix-compact .ix-summary,#ips-xml-widget.ix-compact .ix-right,#ips-xml-widget.ix-compact .ix-editor,#ips-xml-widget.ix-compact .ix-settings{display:none!important}
+#ips-xml-widget.ix-compact .ix-tabs,#ips-xml-widget.ix-compact .ix-summary,#ips-xml-widget.ix-compact .ix-right,#ips-xml-widget.ix-compact .ix-splitter,#ips-xml-widget.ix-compact .ix-editor,#ips-xml-widget.ix-compact .ix-settings{display:none!important}
 #ips-xml-widget.ix-compact .ix-layout{display:block;flex:1 1 auto;height:auto;min-height:0;min-width:0;overflow:hidden}
 #ips-xml-widget.ix-compact .ix-left{width:100%;height:100%;min-width:0;border-right:0}
 #ips-xml-widget.ix-compact .ix-amount-head{display:block;flex:0 0 96px;text-align:right;padding-right:10px}
@@ -131,7 +141,9 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
 
 @media(max-width:680px){
  #ips-xml-widget .ix-layout{grid-template-columns:1fr;grid-template-rows:55% 45%;height:700px}
- #ips-xml-widget .ix-left{border-right:0;border-bottom:1px solid #cbd5e1}
+ #ips-xml-widget .ix-left{border-bottom:1px solid #cbd5e1}
+ #ips-xml-widget .ix-splitter{display:none}
+ #ips-xml-widget.ix-no-attrs .ix-layout{grid-template-rows:1fr}
  #ips-xml-widget .ix-settings-grid{grid-template-columns:1fr}
  #ips-xml-widget .ix-summary{gap:5px;padding:6px}
  #ips-xml-widget .ix-stat{font-size:11px}
@@ -140,12 +152,12 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
  #ips-xml-widget.ix-compact .ix-amount,#ips-xml-widget.ix-compact .ix-amount-head{flex-basis:78px;max-width:78px}
 }
 </style>
-<div class="ix-toolbar"><label class="ix-file">Открыть XML<input type="file" accept=".xml,text/xml,application/xml" data-act="file"></label><button type="button" data-act="paste">Вставить XML</button><input class="ix-search" type="search" placeholder="Поиск по структуре и атрибутам..." data-act="search"><label><input type="checkbox" data-act="group-type" checked> Группировать по типу</label><button type="button" data-act="expand">Развернуть</button><button type="button" data-act="collapse">Свернуть</button><button type="button" data-act="icons">Иконки</button></div>
+<div class="ix-toolbar"><label class="ix-file">Открыть XML<input type="file" accept=".xml,text/xml,application/xml" data-act="file"></label><button type="button" data-act="paste">Вставить XML</button><input class="ix-search" type="search" placeholder="Поиск по структуре и атрибутам..." data-act="search"><label><input type="checkbox" data-act="group-type" checked> Группировать по типу</label><button type="button" data-act="expand">Развернуть</button><button type="button" data-act="collapse">Свернуть</button><button type="button" data-act="icons">Иконки</button><button type="button" data-act="toggle-attrs" aria-pressed="false">Скрыть атрибуты</button></div>
 <div class="ix-loading ix-hidden" data-part="loading" role="status" aria-live="polite" aria-busy="false"><span class="ix-spinner" aria-hidden="true"></span><div class="ix-loading-text"><span data-part="loading-label">Загрузка XML...</span><small data-part="loading-hint">Пожалуйста, не закрывайте читалку</small></div></div>
 <div class="ix-settings" data-part="settings"><div style="margin-bottom:8px">URL изображений для ObjectType. Ссылки должны быть доступны браузеру пользователя.</div><div class="ix-settings-grid" data-part="icon-grid"></div><div style="margin-top:9px"><button type="button" data-act="save-icons">Применить иконки</button></div></div>
 <div class="ix-tabs"><button type="button" class="active" data-tab="ips">Структура IPS</button><button type="button" data-tab="xml">XML-дерево</button><button type="button" data-tab="source">Исходный XML</button></div>
 <div class="ix-summary" data-part="summary" aria-live="polite"></div>
-<div class="ix-layout" data-part="layout"><div class="ix-left" tabindex="0" role="tree" aria-label="Структура"><div class="ix-heading"><span data-part="tree-title">Структура изделий</span><span class="ix-amount-head">Количество</span></div><div data-part="tree"><div class="ix-empty">Загрузите XML-файл или передайте XML программно.</div></div></div><div class="ix-right"><div class="ix-heading"><span>Атрибуты выбранного объекта</span><button type="button" data-act="copy-attrs">Копировать</button></div><div data-part="detail"><div class="ix-empty">Выберите узел слева.</div></div></div></div>
+<div class="ix-layout" data-part="layout"><div class="ix-left" tabindex="0" role="tree" aria-label="Структура"><div class="ix-heading"><span data-part="tree-title">Структура изделий</span><span class="ix-amount-head">Количество</span></div><div data-part="tree"><div class="ix-empty">Загрузите XML-файл или передайте XML программно.</div></div></div><div class="ix-splitter" data-part="splitter" role="separator" aria-orientation="vertical" aria-label="Ширина левой колонки" aria-valuemin="15" aria-valuemax="85" tabindex="0" title="Потяните, чтобы изменить ширину. Двойной клик — сбросить"></div><div class="ix-right"><div class="ix-heading"><span>Атрибуты выбранного объекта</span><button type="button" data-act="copy-attrs">Копировать</button></div><div data-part="detail"><div class="ix-empty">Выберите узел слева.</div></div></div></div>
 <div class="ix-editor" data-part="editor"><div style="margin-bottom:8px"><button type="button" data-act="apply-source">Применить XML</button> <button type="button" data-act="format">Форматировать</button> <button type="button" data-act="copy-source">Копировать XML</button></div><textarea spellcheck="false" data-part="source" placeholder="Вставьте XML сюда..."></textarea></div>
 <div class="ix-status" data-part="status">Ожидание XML</div>
 <script>
@@ -524,7 +536,7 @@ function selectedXml(){
  return n?n.xml:null;
 }
 function updateDetail(){
- if(compactMode||view==='source')return;
+ if(compactMode||view==='source'||root.classList.contains('ix-no-attrs'))return;
  var x=selectedXml();
  if(x)showDetail(x,nodeByXml.get(x));
  else if(view==='xml'||!selection.ips||selection.ips.charAt(0)!=='g')showDetail(null);
@@ -720,6 +732,56 @@ window.ELMA_IPS_XML_SET_ICONS=function(mapping){
  $$('[data-icon]').forEach(function(i){i.value=iconUrls[i.dataset.icon]||''});
  scheduleRender(true);
 };
+
+/* ======================= layout: attributes panel & column width ======================= */
+// Saved per browser: whether the attributes panel is hidden and the tree column width (in %).
+var PREF_KEY='ips-xml-widget:layout';
+var prefs=(function(){try{return JSON.parse(localStorage.getItem(PREF_KEY))||{}}catch(e){return {}}})();
+function savePrefs(){try{localStorage.setItem(PREF_KEY,JSON.stringify(prefs))}catch(e){}}
+var layoutBox=$('[data-part=layout]'),splitter=$('[data-part=splitter]'),attrsBtn=$('[data-act=toggle-attrs]');
+var MIN_COL=200; // px, minimum width of either column
+function setAttrsVisible(visible){
+ prefs.hideAttrs=!visible;
+ root.classList.toggle('ix-no-attrs',!visible);
+ attrsBtn.textContent=visible?'Скрыть атрибуты':'Показать атрибуты';
+ attrsBtn.setAttribute('aria-pressed',visible?'false':'true');
+ attrsBtn.classList.toggle('active',!visible);
+ if(visible)updateDetail();
+ scheduleRender(true);
+}
+function applyLeftPct(pct){
+ pct=Math.min(85,Math.max(15,pct));
+ layoutBox.style.setProperty('--ix-left-w',pct.toFixed(2)+'%');
+ splitter.setAttribute('aria-valuenow',String(Math.round(pct)));
+ prefs.leftPct=pct;
+}
+function setLeftPx(px){
+ var total=layoutBox.clientWidth;if(!total)return;
+ px=Math.min(Math.max(MIN_COL,total-MIN_COL-7),Math.max(MIN_COL,px));
+ applyLeftPct(px/total*100);
+}
+attrsBtn.onclick=function(){setAttrsVisible(root.classList.contains('ix-no-attrs'));savePrefs()};
+splitter.addEventListener('pointerdown',function(e){
+ if(e.button!==0)return;
+ e.preventDefault();
+ var startX=e.clientX,startW=scroller.getBoundingClientRect().width;
+ try{splitter.setPointerCapture(e.pointerId)}catch(err){}
+ root.classList.add('ix-resizing');
+ function move(ev){setLeftPx(startW+ev.clientX-startX)}
+ function up(){
+  splitter.removeEventListener('pointermove',move);splitter.removeEventListener('pointerup',up);splitter.removeEventListener('pointercancel',up);
+  root.classList.remove('ix-resizing');savePrefs();
+ }
+ splitter.addEventListener('pointermove',move);splitter.addEventListener('pointerup',up);splitter.addEventListener('pointercancel',up);
+});
+splitter.addEventListener('dblclick',function(){layoutBox.style.removeProperty('--ix-left-w');delete prefs.leftPct;splitter.removeAttribute('aria-valuenow');savePrefs()});
+splitter.addEventListener('keydown',function(e){
+ var step=e.shiftKey?60:20,w=scroller.getBoundingClientRect().width;
+ if(e.key==='ArrowLeft')setLeftPx(w-step);else if(e.key==='ArrowRight')setLeftPx(w+step);else return;
+ e.preventDefault();savePrefs();
+});
+if(typeof prefs.leftPct==='number')applyLeftPct(prefs.leftPct);
+if(prefs.hideAttrs)setAttrsVisible(false);
 
 if(compactMode)root.classList.add('ix-compact');
 lockContextControls();
