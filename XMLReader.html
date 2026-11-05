@@ -88,7 +88,7 @@ var ipsCompactMode = !!ipsXmlContextFile || !!ipsRkdContextFile || ipsCompactFie
 #ips-xml-widget .ix-right{overflow:auto}
 #ips-xml-widget .ix-heading{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;height:36px;padding:0 12px;background:#f1f5f9;border-bottom:1px solid #dce4ed;font-weight:bold}
 #ips-xml-widget .ix-heading button{padding:1px 7px;font-weight:normal}
-#ips-xml-widget .ix-heading>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ips-xml-widget .ix-heading>span:first-child{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #ips-xml-widget .ix-heading button{flex:none}
 
 /* ---------- tree rows (fixed height => virtual scrolling) ---------- */
@@ -145,7 +145,7 @@ var ipsCompactMode = !!ipsXmlContextFile || !!ipsRkdContextFile || ipsCompactFie
 @media(prefers-reduced-motion:reduce){#ips-xml-widget .ix-spinner{animation:none;border-color:#2563eb}}
 
 /* ---------- amount column (compact only) ---------- */
-#ips-xml-widget .ix-amount,#ips-xml-widget .ix-amount-head{display:none}
+#ips-xml-widget .ix-amount,#ips-xml-widget .ix-amount-head,#ips-xml-widget .ix-measure,#ips-xml-widget .ix-measure-head{display:none}
 
 /* ---------- compact context view: search + grouped tree with Amount column ---------- */
 #ips-xml-widget.ix-compact{display:flex;flex-direction:column;width:100%!important;max-width:none!important;min-width:0;min-height:0;height:clamp(380px,68vh,900px);align-self:stretch;justify-self:stretch}
@@ -161,6 +161,9 @@ var ipsCompactMode = !!ipsXmlContextFile || !!ipsRkdContextFile || ipsCompactFie
 #ips-xml-widget.ix-compact:not(.ix-no-attrs) .ix-layout{display:grid;grid-template-rows:minmax(0,1fr)}
 #ips-xml-widget.ix-compact .ix-right{min-height:0}
 #ips-xml-widget.ix-compact .ix-amount-head{display:block;flex:0 0 96px;text-align:right;padding-right:10px}
+/* unit column (MeasureName): shown only when at least one node of the file has it */
+#ips-xml-widget.ix-compact.ix-has-measure .ix-measure-head{display:block;flex:0 0 90px;padding-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ips-xml-widget.ix-compact.ix-has-measure .ix-measure{display:block;align-self:stretch;flex:0 0 90px;max-width:90px;padding:0 6px 0 8px;line-height:26px;border-left:1px solid #e2e8f0;color:#475569;font-weight:normal;overflow:hidden;text-overflow:ellipsis}
 #ips-xml-widget.ix-compact .ix-node{padding-right:0}
 #ips-xml-widget.ix-compact .ix-amount{display:block;align-self:stretch;flex:0 0 96px;max-width:96px;text-align:right;padding:0 10px 0 6px;line-height:26px;border-left:1px solid #e2e8f0;color:#334155;font-weight:normal;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
 #ips-xml-widget.ix-compact .ix-status:not(.ix-error){display:none}
@@ -177,6 +180,7 @@ var ipsCompactMode = !!ipsXmlContextFile || !!ipsRkdContextFile || ipsCompactFie
  #ips-xml-widget.ix-compact .ix-layout{height:auto;display:block}
  #ips-xml-widget.ix-compact:not(.ix-no-attrs) .ix-layout{display:grid;grid-template-columns:1fr;grid-template-rows:minmax(0,55%) minmax(0,45%)}
  #ips-xml-widget.ix-compact .ix-amount,#ips-xml-widget.ix-compact .ix-amount-head{flex-basis:78px;max-width:78px}
+ #ips-xml-widget.ix-compact.ix-has-measure .ix-measure,#ips-xml-widget.ix-compact.ix-has-measure .ix-measure-head{flex-basis:64px;max-width:64px}
 }
 </style>
 <div class="ix-toolbar"><div class="ix-sources ix-hidden" data-part="sources" role="group" aria-label="Файл XML"><button type="button" data-source="xml" title="Context.data.xml">Состав</button><button type="button" data-source="rkd" title="Context.data.xml_rkd">РКД</button></div><label class="ix-file">Открыть XML<input type="file" accept=".xml,text/xml,application/xml" data-act="file"></label><button type="button" data-act="paste">Вставить XML</button><input class="ix-search" type="search" placeholder="Поиск по структуре и атрибутам..." data-act="search"><label class="ix-group-toggle"><input type="checkbox" data-act="group-type" checked> Группировать по типу</label><button type="button" data-act="expand">Развернуть</button><button type="button" data-act="collapse">Свернуть</button><button type="button" data-act="icons">Иконки</button><button type="button" data-act="toggle-attrs" aria-pressed="false">Скрыть атрибуты</button></div>
@@ -184,7 +188,7 @@ var ipsCompactMode = !!ipsXmlContextFile || !!ipsRkdContextFile || ipsCompactFie
 <div class="ix-settings" data-part="settings"><div style="margin-bottom:8px">URL изображений для ObjectType. Ссылки должны быть доступны браузеру пользователя.</div><div class="ix-settings-grid" data-part="icon-grid"></div><div style="margin-top:9px"><button type="button" data-act="save-icons">Применить иконки</button></div></div>
 <div class="ix-tabs"><button type="button" class="active" data-tab="ips">Структура IPS</button><button type="button" data-tab="xml">XML-дерево</button><button type="button" data-tab="source">Исходный XML</button></div>
 <div class="ix-summary" data-part="summary" aria-live="polite"></div>
-<div class="ix-layout" data-part="layout"><div class="ix-left" tabindex="0" role="tree" aria-label="Структура"><div class="ix-heading"><span data-part="tree-title">Структура изделий</span><span class="ix-amount-head">Количество</span></div><div data-part="tree"><div class="ix-empty">Загрузите XML-файл или передайте XML программно.</div></div></div><div class="ix-splitter" data-part="splitter" role="separator" aria-orientation="vertical" aria-label="Ширина левой колонки" aria-valuemin="15" aria-valuemax="85" tabindex="0" title="Потяните, чтобы изменить ширину. Двойной клик — сбросить"></div><div class="ix-right"><div class="ix-heading"><span>Атрибуты выбранного объекта</span><button type="button" data-act="copy-attrs">Копировать</button></div><div data-part="detail"><div class="ix-empty">Выберите узел слева.</div></div></div></div>
+<div class="ix-layout" data-part="layout"><div class="ix-left" tabindex="0" role="tree" aria-label="Структура"><div class="ix-heading"><span data-part="tree-title">Структура изделий</span><span class="ix-amount-head">Количество</span><span class="ix-measure-head" title="MeasureName">Ед. изм.</span></div><div data-part="tree"><div class="ix-empty">Загрузите XML-файл или передайте XML программно.</div></div></div><div class="ix-splitter" data-part="splitter" role="separator" aria-orientation="vertical" aria-label="Ширина левой колонки" aria-valuemin="15" aria-valuemax="85" tabindex="0" title="Потяните, чтобы изменить ширину. Двойной клик — сбросить"></div><div class="ix-right"><div class="ix-heading"><span>Атрибуты выбранного объекта</span><button type="button" data-act="copy-attrs">Копировать</button></div><div data-part="detail"><div class="ix-empty">Выберите узел слева.</div></div></div></div>
 <div class="ix-editor" data-part="editor"><div style="margin-bottom:8px"><button type="button" data-act="apply-source">Применить XML</button> <button type="button" data-act="format">Форматировать</button> <button type="button" data-act="copy-source">Копировать XML</button></div><textarea spellcheck="false" data-part="source" placeholder="Вставьте XML сюда..."></textarea></div>
 <div class="ix-status" data-part="status">Ожидание XML</div>
 <script>
@@ -333,6 +337,7 @@ function build(){
  selection={ips:roots[0]?nodeKey(roots[0]):null,xml:null};
  scroller.scrollTop=0;
  if(query)computeSearch();
+ root.classList.toggle('ix-has-measure',nodes.some(function(n){return !!(attr(n.xml,'MeasureName')||attr(n.xml,'measureName'))}));
  updateSummary();
 }
 
@@ -505,6 +510,12 @@ function highlighted(text,cls){
  span.appendChild(document.createTextNode(text.slice(i+query.length)));
  return span;
 }
+function measureCell(n){
+ var m=n?attr(n.xml,'MeasureName')||attr(n.xml,'measureName'):'';
+ var c=el('span','ix-measure',m);
+ if(m)c.title=m;
+ return c;
+}
 function amountCell(n){
  var amount=n?attr(n.xml,'Amount')||attr(n.xml,'amount'):'';
  var c=el('span','ix-amount',n?(amount||'—'):'');
@@ -526,14 +537,14 @@ function renderRow(row,i,isSel){
   line.appendChild(iconEl(t));
   line.appendChild(el('span','ix-label',(isOrderGroup?'Заказы · ':'')+(TYPES[t]?TYPES[t].name:'Тип '+t)));
   line.appendChild(el('span','ix-count','('+row.count+')'));
-  line.appendChild(amountCell(null));
+  line.appendChild(amountCell(null));line.appendChild(measureCell(null));
  }else if(row.kind==='node'){
   var n=row.node;
   if(n.isOrder)line.classList.add(n.parent?'ix-order-nested':'ix-order-root');
   line.appendChild(iconEl(n.type));
   var nameEl=highlighted(n.name,'ix-label');if(line.title)nameEl.title=n.name+'\n'+line.title;line.appendChild(nameEl);
   if(n.children.length)line.appendChild(el('span','ix-count','('+n.children.length+')'));
-  line.appendChild(amountCell(n));
+  line.appendChild(amountCell(n));line.appendChild(measureCell(n));
  }else{
   var x=row.xml,name=attr(x,'FullName')||attr(x,'Name'),lbl=el('span','ix-label');
   lbl.appendChild(highlighted('<'+x.tagName+'>','ix-tag'));
@@ -808,7 +819,7 @@ function restoreSourceView(src){
 }
 function clearTree(){
  xmlDoc=null;raw='';nodes=[];roots=[];nodeById=new Map();nodeByXml=new Map();activeOrderXml=null;
- selection={ips:null,xml:null};sourceBox.value='';updateSummary();refresh();showDetail(null);
+ selection={ips:null,xml:null};sourceBox.value='';root.classList.remove('ix-has-measure');updateSummary();refresh();showDetail(null);
 }
 async function downloadSource(src){
  var result=null;
