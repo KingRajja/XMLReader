@@ -128,12 +128,15 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
 #ips-xml-widget.ix-compact{display:flex;flex-direction:column;width:100%!important;max-width:none!important;min-width:0;min-height:0;height:clamp(380px,68vh,900px);align-self:stretch;justify-self:stretch}
 #ips-xml-widget.ix-compact .ix-loading{flex:none}
 #ips-xml-widget.ix-compact .ix-toolbar{padding:8px}
-#ips-xml-widget.ix-compact .ix-toolbar > :not(.ix-search):not([data-act=expand]):not([data-act=collapse]){display:none!important}
+#ips-xml-widget.ix-compact .ix-toolbar > :not(.ix-search):not([data-act=expand]):not([data-act=collapse]):not([data-act=toggle-attrs]){display:none!important}
 #ips-xml-widget.ix-compact .ix-toolbar button{flex:0 0 auto;white-space:nowrap}
 #ips-xml-widget.ix-compact .ix-search{min-width:110px;width:100%;flex:1}
-#ips-xml-widget.ix-compact .ix-tabs,#ips-xml-widget.ix-compact .ix-summary,#ips-xml-widget.ix-compact .ix-right,#ips-xml-widget.ix-compact .ix-splitter,#ips-xml-widget.ix-compact .ix-editor,#ips-xml-widget.ix-compact .ix-settings{display:none!important}
+#ips-xml-widget.ix-compact .ix-tabs,#ips-xml-widget.ix-compact .ix-summary,#ips-xml-widget.ix-compact .ix-editor,#ips-xml-widget.ix-compact .ix-settings{display:none!important}
 #ips-xml-widget.ix-compact .ix-layout{display:block;flex:1 1 auto;height:auto;min-height:0;min-width:0;overflow:hidden}
 #ips-xml-widget.ix-compact .ix-left{width:100%;height:100%;min-width:0;border-right:0}
+/* compact with attributes shown: same two-column grid as the full view */
+#ips-xml-widget.ix-compact:not(.ix-no-attrs) .ix-layout{display:grid;grid-template-rows:minmax(0,1fr)}
+#ips-xml-widget.ix-compact .ix-right{min-height:0}
 #ips-xml-widget.ix-compact .ix-amount-head{display:block;flex:0 0 96px;text-align:right;padding-right:10px}
 #ips-xml-widget.ix-compact .ix-node{padding-right:0}
 #ips-xml-widget.ix-compact .ix-amount{display:block;align-self:stretch;flex:0 0 96px;max-width:96px;text-align:right;padding:0 10px 0 6px;line-height:26px;border-left:1px solid #e2e8f0;color:#334155;font-weight:normal;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
@@ -149,6 +152,7 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
  #ips-xml-widget .ix-stat{font-size:11px}
  #ips-xml-widget.ix-compact{height:clamp(360px,70vh,720px)}
  #ips-xml-widget.ix-compact .ix-layout{height:auto;display:block}
+ #ips-xml-widget.ix-compact:not(.ix-no-attrs) .ix-layout{display:grid;grid-template-columns:1fr;grid-template-rows:minmax(0,55%) minmax(0,45%)}
  #ips-xml-widget.ix-compact .ix-amount,#ips-xml-widget.ix-compact .ix-amount-head{flex-basis:78px;max-width:78px}
 }
 </style>
@@ -535,7 +539,7 @@ function selectedXml(){
  return n?n.xml:null;
 }
 function updateDetail(){
- if(compactMode||view==='source'||root.classList.contains('ix-no-attrs'))return;
+ if(view==='source'||root.classList.contains('ix-no-attrs'))return;
  var x=selectedXml();
  if(x)showDetail(x,nodeByXml.get(x));
  else if(view==='xml'||!selection.ips||selection.ips.charAt(0)!=='g')showDetail(null);
@@ -556,6 +560,7 @@ function ensureVisible(i){
 }
 
 /* ======================= tree interaction ======================= */
+function clickToggles(){return compactMode&&root.classList.contains('ix-no-attrs')}
 function rowFromEvent(e){
  var line=e.target.closest&&e.target.closest('.ix-node');
  if(!line||!treeHost.contains(line))return -1;
@@ -565,12 +570,12 @@ treeHost.addEventListener('click',function(e){
  var i=rowFromEvent(e),row=rows[i];if(!row)return;
  var onToggle=!!e.target.closest('.ix-exp');
  select(i,false);
- // groups, the +/- box and any row in compact mode toggle on single click
- if(row.kind==='group'||onToggle||compactMode)toggle(row);
+ // groups, the +/- box and (compact view without attributes) any row toggle on single click
+ if(row.kind==='group'||onToggle||clickToggles())toggle(row);
 });
 treeHost.addEventListener('dblclick',function(e){
  var i=rowFromEvent(e),row=rows[i];if(!row)return;
- if(row.kind==='group'||compactMode||e.target.closest('.ix-exp'))return;
+ if(row.kind==='group'||clickToggles()||e.target.closest('.ix-exp'))return;
  toggle(row);
 });
 scroller.addEventListener('scroll',function(){scheduleRender(false)},{passive:true});
@@ -740,7 +745,7 @@ function savePrefs(){try{localStorage.setItem(PREF_KEY,JSON.stringify(prefs))}ca
 var layoutBox=$('[data-part=layout]'),splitter=$('[data-part=splitter]'),attrsBtn=$('[data-act=toggle-attrs]');
 var MIN_COL=200; // px, minimum width of either column
 function setAttrsVisible(visible){
- prefs.hideAttrs=!visible;
+ if(!compactMode)prefs.hideAttrs=!visible; // compact view always starts hidden, nothing to remember
  root.classList.toggle('ix-no-attrs',!visible);
  attrsBtn.textContent=visible?'Скрыть атрибуты':'Показать атрибуты';
  attrsBtn.setAttribute('aria-pressed',visible?'false':'true');
@@ -780,7 +785,8 @@ splitter.addEventListener('keydown',function(e){
  e.preventDefault();savePrefs();
 });
 if(typeof prefs.leftPct==='number')applyLeftPct(prefs.leftPct);
-if(prefs.hideAttrs)setAttrsVisible(false);
+// Compact (card) view: attributes are hidden automatically on every open, the button shows them.
+if(compactMode||prefs.hideAttrs)setAttrsVisible(false);
 
 if(compactMode)root.classList.add('ix-compact');
 lockContextControls();
