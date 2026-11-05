@@ -386,7 +386,10 @@ function applySearch(q){
 function flattenIps(){
  var out=[];
  function addList(list,depth,parentKey,parentIdx){
-  if(!groupByType){list.forEach(function(n){addNode(n,depth,parentIdx)});return}
+  // With an ObjectID there is exactly one root Order: show it directly, without a type group above it.
+  // Grouping by type still applies inside its composition.
+  var ungrouped=!groupByType||(parentKey==='root'&&!!orderObjectId);
+  if(ungrouped){list.forEach(function(n){addNode(n,depth,parentIdx)});return}
   var groups=new Map();
   list.forEach(function(n){
    if(ipsVisible&&!ipsVisible.has(n.id))return;
