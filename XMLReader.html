@@ -41,6 +41,7 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
 #ips-xml-widget .ix-file input{display:none}
 #ips-xml-widget .ix-file.ix-disabled{pointer-events:none;background:#94a3b8}
 #ips-xml-widget .ix-search{min-width:130px;flex:1;padding:7px 9px;border:1px solid #cbd5e1;border-radius:5px}
+#ips-xml-widget .ix-group-toggle{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer;user-select:none}
 #ips-xml-widget .ix-tabs{display:flex;gap:4px;padding:7px 10px;border-bottom:1px solid #dce4ed}
 
 /* ---------- summary ---------- */
@@ -128,7 +129,7 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
 #ips-xml-widget.ix-compact{display:flex;flex-direction:column;width:100%!important;max-width:none!important;min-width:0;min-height:0;height:clamp(380px,68vh,900px);align-self:stretch;justify-self:stretch}
 #ips-xml-widget.ix-compact .ix-loading{flex:none}
 #ips-xml-widget.ix-compact .ix-toolbar{padding:8px}
-#ips-xml-widget.ix-compact .ix-toolbar > :not(.ix-search):not([data-act=expand]):not([data-act=collapse]):not([data-act=toggle-attrs]){display:none!important}
+#ips-xml-widget.ix-compact .ix-toolbar > :not(.ix-search):not([data-act=expand]):not([data-act=collapse]):not([data-act=toggle-attrs]):not(.ix-group-toggle){display:none!important}
 #ips-xml-widget.ix-compact .ix-toolbar button{flex:0 0 auto;white-space:nowrap}
 #ips-xml-widget.ix-compact .ix-search{min-width:110px;width:100%;flex:1}
 #ips-xml-widget.ix-compact .ix-tabs,#ips-xml-widget.ix-compact .ix-summary,#ips-xml-widget.ix-compact .ix-editor,#ips-xml-widget.ix-compact .ix-settings{display:none!important}
@@ -156,7 +157,7 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
  #ips-xml-widget.ix-compact .ix-amount,#ips-xml-widget.ix-compact .ix-amount-head{flex-basis:78px;max-width:78px}
 }
 </style>
-<div class="ix-toolbar"><label class="ix-file">Открыть XML<input type="file" accept=".xml,text/xml,application/xml" data-act="file"></label><button type="button" data-act="paste">Вставить XML</button><input class="ix-search" type="search" placeholder="Поиск по структуре и атрибутам..." data-act="search"><label><input type="checkbox" data-act="group-type" checked> Группировать по типу</label><button type="button" data-act="expand">Развернуть</button><button type="button" data-act="collapse">Свернуть</button><button type="button" data-act="icons">Иконки</button><button type="button" data-act="toggle-attrs" aria-pressed="false">Скрыть атрибуты</button></div>
+<div class="ix-toolbar"><label class="ix-file">Открыть XML<input type="file" accept=".xml,text/xml,application/xml" data-act="file"></label><button type="button" data-act="paste">Вставить XML</button><input class="ix-search" type="search" placeholder="Поиск по структуре и атрибутам..." data-act="search"><label class="ix-group-toggle"><input type="checkbox" data-act="group-type" checked> Группировать по типу</label><button type="button" data-act="expand">Развернуть</button><button type="button" data-act="collapse">Свернуть</button><button type="button" data-act="icons">Иконки</button><button type="button" data-act="toggle-attrs" aria-pressed="false">Скрыть атрибуты</button></div>
 <div class="ix-loading ix-hidden" data-part="loading" role="status" aria-live="polite" aria-busy="false"><span class="ix-spinner" aria-hidden="true"></span><div class="ix-loading-text"><span data-part="loading-label">Загрузка XML...</span><small data-part="loading-hint">Пожалуйста, не закрывайте читалку</small></div></div>
 <div class="ix-settings" data-part="settings"><div style="margin-bottom:8px">URL изображений для ObjectType. Ссылки должны быть доступны браузеру пользователя.</div><div class="ix-settings-grid" data-part="icon-grid"></div><div style="margin-top:9px"><button type="button" data-act="save-icons">Применить иконки</button></div></div>
 <div class="ix-tabs"><button type="button" class="active" data-tab="ips">Структура IPS</button><button type="button" data-tab="xml">XML-дерево</button><button type="button" data-tab="source">Исходный XML</button></div>
