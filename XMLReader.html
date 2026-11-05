@@ -1,15 +1,30 @@
 <%
 // FileItemRef: static URL requires a saved file.
-// Resolve temporary URL asynchronously and catch errors before rendering.
-var ipsXmlContextFile = Context.data.xml;
-window['ELMA_IPS_XML_CONTEXT_DOWNLOAD'] = ipsXmlContextFile
-  ? Promise.resolve().then(function(){return ipsXmlContextFile.getDownloadUrl('inline')})
-      .then(function(url){return {url:String(url||'')}})
-      .catch(function(err){return {error:String(err&&err.message||err)}})
-  : null;
+// Two context files: Context.data.xml (состав) and Context.data.xml_rkd (РКД).
+// For each one the widget gets a function that resolves a fresh temporary URL (errors are caught).
 // Reflect.get avoids TypeScript property errors for optional fields not declared on this specific form.
+var ipsXmlContextFile = Context.data.xml;
+var ipsRkdContextFile = Reflect.get(Context.data, 'xml_rkd');
+var ipsContextSources = {
+  xml: ipsXmlContextFile ? function(){return Promise.resolve().then(function(){return ipsXmlContextFile.getDownloadUrl('inline')})
+      .then(function(url){return {url:String(url||'')}})
+      .catch(function(err){return {error:String(err&&err.message||err)}})} : null,
+  rkd: ipsRkdContextFile ? function(){return Promise.resolve().then(function(){return ipsRkdContextFile.getDownloadUrl('inline')})
+      .then(function(url){return {url:String(url||'')}})
+      .catch(function(err){return {error:String(err&&err.message||err)}})} : null
+};
+window['ELMA_IPS_XML_CONTEXT_SOURCES'] = ipsContextSources;
+// Labels of the file switch buttons: Context.data.button_name_1 (xml) and button_name_2 (xml_rkd).
+var ipsButtonName1 = Reflect.get(Context.data, 'button_name_1');
+var ipsButtonName2 = Reflect.get(Context.data, 'button_name_2');
+window['ELMA_IPS_XML_BUTTON_NAMES'] = {
+  xml: ipsButtonName1 == null ? '' : String(ipsButtonName1).trim(),
+  rkd: ipsButtonName2 == null ? '' : String(ipsButtonName2).trim()
+};
+// The main file URL is requested right away (as before); РКД only when the user switches to it.
+window['ELMA_IPS_XML_CONTEXT_DOWNLOAD'] = ipsContextSources.xml ? ipsContextSources.xml() : null;
 var ipsCompactFields = ['objectid','project','Project','projectId','projectid','project_version','projectVersion','projectversion','version','Version','versionId','versionid'];
-var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) {
+var ipsCompactMode = !!ipsXmlContextFile || !!ipsRkdContextFile || ipsCompactFields.some(function(key) {
   var value = Reflect.get(Context.data, key);
   if (value == null || value === false || value === 0) return false;
   if (typeof value === 'string') return value.trim() !== '' && value.trim() !== '0';
@@ -19,86 +34,231 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
 %>
 <div id="ips-xml-widget" class="ixw"
  data-elma-file-present="<%= Context.data.xml ? '1' : '0' %>"
+ data-elma-rkd-present="<%= ipsRkdContextFile ? '1' : '0' %>"
  data-elma-compact="<%= ipsCompactMode ? '1' : '0' %>"
  data-elma-objectid="<%= Context.data.objectid == null ? '' : Context.data.objectid %>">
 <style>
-#ips-xml-widget{font:13px/1.45 Arial,sans-serif;color:#273443;background:#fff;border:1px solid #d8e0ea;border-radius:9px;overflow:hidden;min-height:540px}#ips-xml-widget *{box-sizing:border-box}#ips-xml-widget button,#ips-xml-widget input,#ips-xml-widget textarea{font:inherit}#ips-xml-widget button{cursor:pointer;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:5px;padding:6px 10px}#ips-xml-widget button:hover{background:#eff6ff}#ips-xml-widget button.active{background:#dbeafe;border-color:#93c5fd;color:#1d4ed8}#ips-xml-widget .ix-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:10px;border-bottom:1px solid #dce4ed;background:#f8fafc}#ips-xml-widget .ix-file{display:inline-block;cursor:pointer;background:#2563eb;color:white;border-radius:5px;padding:7px 11px}#ips-xml-widget .ix-file input{display:none}#ips-xml-widget .ix-search{min-width:130px;flex:1;padding:7px 9px;border:1px solid #cbd5e1;border-radius:5px}#ips-xml-widget .ix-tabs{display:flex;gap:4px;padding:7px 10px;border-bottom:1px solid #dce4ed}#ips-xml-widget .ix-layout{display:grid;grid-template-columns:minmax(250px,56%) minmax(230px,44%);height:590px;min-height:350px}#ips-xml-widget .ix-left{overflow:auto;border-right:1px solid #cbd5e1}#ips-xml-widget .ix-right{overflow:auto}#ips-xml-widget .ix-heading{position:sticky;top:0;z-index:2;padding:8px 12px;background:#f1f5f9;border-bottom:1px solid #dce4ed;font-weight:bold}#ips-xml-widget .ix-node{display:flex;align-items:center;gap:5px;min-height:25px;padding:2px 8px 2px 0;white-space:nowrap;cursor:pointer;user-select:none}#ips-xml-widget .ix-node:hover{background:#f1f5f9}#ips-xml-widget .ix-node.selected{background:#dbeafe;color:#1d4ed8}#ips-xml-widget .ix-exp{display:inline-flex;align-items:center;justify-content:center;flex:0 0 17px;width:17px;height:17px;border:1px solid transparent;border-radius:3px;font-size:12px}#ips-xml-widget .ix-exp.has{border-color:#a8b5c5;background:#fff}#ips-xml-widget .ix-icon{width:17px;height:17px;object-fit:contain;flex:none}#ips-xml-widget .ix-fallback{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:3px;background:#e2e8f0;color:#475569;font-size:11px;flex:none}#ips-xml-widget .ix-label{overflow:hidden;text-overflow:ellipsis}#ips-xml-widget .ix-count{color:#64748b;font-size:11px;margin-left:5px}#ips-xml-widget .ix-attrs{width:100%;border-collapse:collapse;table-layout:fixed}#ips-xml-widget .ix-attrs th,#ips-xml-widget .ix-attrs td{padding:6px 8px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top;overflow-wrap:anywhere}#ips-xml-widget .ix-attrs th{width:47%;font-weight:normal;color:#526174;background:#fafcff}#ips-xml-widget .ix-attrs tr:hover td,#ips-xml-widget .ix-attrs tr:hover th{background:#eff6ff}#ips-xml-widget .ix-muted{color:#64748b}#ips-xml-widget .ix-detail-head{padding:10px 12px;border-bottom:1px solid #e2e8f0;font-weight:bold;overflow-wrap:anywhere}#ips-xml-widget .ix-status{border-top:1px solid #dce4ed;padding:7px 12px;background:#f8fafc;color:#64748b;font-size:12px}#ips-xml-widget .ix-editor{display:none;padding:10px;height:590px}#ips-xml-widget textarea{width:100%;height:calc(100% - 42px);resize:vertical;min-height:280px;border:1px solid #cbd5e1;border-radius:5px;padding:10px;font:12px/1.5 Consolas,monospace;white-space:pre;tab-size:2}#ips-xml-widget .ix-xmltree{padding:10px}#ips-xml-widget .ix-empty{padding:24px;color:#64748b}#ips-xml-widget .ix-settings{display:none;padding:12px;border-bottom:1px solid #e2e8f0;background:#f8fafc}#ips-xml-widget .ix-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#ips-xml-widget .ix-setting{display:flex;align-items:center;gap:6px}#ips-xml-widget .ix-setting label{min-width:45px}#ips-xml-widget .ix-setting input{width:100%;min-width:0;padding:5px;border:1px solid #cbd5e1;border-radius:4px}#ips-xml-widget .ix-hidden{display:none!important}@media(max-width:680px){#ips-xml-widget .ix-layout{grid-template-columns:1fr;grid-template-rows:55% 45%;height:700px}#ips-xml-widget .ix-left{border-right:0;border-bottom:1px solid #cbd5e1}#ips-xml-widget .ix-settings-grid{grid-template-columns:1fr}}
+/* ---------- base ---------- */
+#ips-xml-widget{display:block;box-sizing:border-box;width:100%!important;max-width:none!important;min-width:0;font:13px/1.45 Arial,sans-serif;color:#273443;background:#fff;border:1px solid #d8e0ea;border-radius:9px;overflow:hidden;min-height:540px}
+#ips-xml-widget *{box-sizing:border-box}
+#ips-xml-widget button,#ips-xml-widget input,#ips-xml-widget textarea{font:inherit}
+#ips-xml-widget button{cursor:pointer;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:5px;padding:6px 10px}
+#ips-xml-widget button:hover{background:#eff6ff}
+#ips-xml-widget button.active{background:#dbeafe;border-color:#93c5fd;color:#1d4ed8}
+#ips-xml-widget button:disabled,#ips-xml-widget .ix-file.ix-disabled{opacity:.55;cursor:not-allowed}
+#ips-xml-widget button:disabled:hover{background:#fff}
+#ips-xml-widget .ix-hidden{display:none!important}
+#ips-xml-widget .ix-muted{color:#64748b}
+#ips-xml-widget .ix-empty{padding:24px;color:#64748b}
 
-/* Nested manufacturing orders: distinguish them from plain IPS composition items. */
+/* ---------- toolbar / tabs ---------- */
+#ips-xml-widget .ix-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:10px;border-bottom:1px solid #dce4ed;background:#f8fafc;min-width:0}
+#ips-xml-widget .ix-file{display:inline-block;cursor:pointer;background:#2563eb;color:#fff;border-radius:5px;padding:7px 11px}
+#ips-xml-widget .ix-file input{display:none}
+#ips-xml-widget .ix-file.ix-disabled{pointer-events:none;background:#94a3b8}
+#ips-xml-widget .ix-search{min-width:130px;flex:1;padding:7px 9px;border:1px solid #cbd5e1;border-radius:5px}
+#ips-xml-widget .ix-group-toggle{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer;user-select:none}
+/* file switch (Состав / РКД): segmented buttons */
+#ips-xml-widget .ix-sources{display:inline-flex;flex:none}
+#ips-xml-widget .ix-sources button{border-radius:0;margin-left:-1px;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+#ips-xml-widget .ix-sources button:first-child{border-radius:5px 0 0 5px;margin-left:0}
+#ips-xml-widget .ix-sources button:last-child{border-radius:0 5px 5px 0}
+#ips-xml-widget .ix-sources button.active{position:relative;z-index:1;font-weight:700}
+#ips-xml-widget .ix-tabs{display:flex;gap:4px;padding:7px 10px;border-bottom:1px solid #dce4ed}
+
+/* ---------- summary ---------- */
 #ips-xml-widget .ix-summary{display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:8px 10px;background:#fff;border-bottom:1px solid #dce4ed}
+#ips-xml-widget .ix-summary:empty{display:none}
 #ips-xml-widget .ix-stat{display:inline-flex;gap:5px;align-items:center;padding:3px 8px;border-radius:5px;background:#f1f5f9;color:#475569;font-size:12px}
 #ips-xml-widget .ix-stat strong{font-weight:700;color:#0f172a}
 #ips-xml-widget .ix-stat.ix-stat-nested{background:#e0f2fe;color:#075985}
-#ips-xml-widget .ix-node.ix-order-root{border-left:3px solid #64748b;background:#f8fafc;font-weight:600}
-#ips-xml-widget .ix-node.ix-order-nested{border-left:3px solid #0284c7;background:#f0f9ff;font-weight:600}
+
+/* ---------- layout ---------- */
+#ips-xml-widget .ix-layout{display:grid;grid-template-columns:var(--ix-left-w,56%) 7px minmax(0,1fr);height:590px;min-height:350px}
+#ips-xml-widget .ix-left{position:relative;overflow:auto;min-width:0;outline:none}
+/* draggable splitter between tree and attributes */
+#ips-xml-widget .ix-splitter{position:relative;cursor:col-resize;background:#f1f5f9;border-left:1px solid #cbd5e1;border-right:1px solid #e2e8f0;touch-action:none;outline:none}
+#ips-xml-widget .ix-splitter::after{content:'';position:absolute;left:1px;top:50%;width:3px;height:28px;margin-top:-14px;border-left:1px dotted #94a3b8;border-right:1px dotted #94a3b8}
+#ips-xml-widget .ix-splitter:hover,#ips-xml-widget .ix-splitter:focus-visible,#ips-xml-widget.ix-resizing .ix-splitter{background:#bfdbfe}
+#ips-xml-widget.ix-resizing,#ips-xml-widget.ix-resizing *{cursor:col-resize!important;user-select:none!important}
+/* attributes panel hidden */
+#ips-xml-widget.ix-no-attrs .ix-layout{grid-template-columns:minmax(0,1fr)}
+#ips-xml-widget.ix-no-attrs .ix-right,#ips-xml-widget.ix-no-attrs .ix-splitter{display:none}
+#ips-xml-widget .ix-left:focus-visible{box-shadow:inset 0 0 0 2px #93c5fd}
+#ips-xml-widget .ix-right{overflow:auto}
+#ips-xml-widget .ix-heading{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;height:36px;padding:0 12px;background:#f1f5f9;border-bottom:1px solid #dce4ed;font-weight:bold}
+#ips-xml-widget .ix-heading button{padding:1px 7px;font-weight:normal}
+#ips-xml-widget .ix-heading>span:first-child{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ips-xml-widget .ix-heading button{flex:none}
+
+/* ---------- tree rows (fixed height => virtual scrolling) ---------- */
+#ips-xml-widget [data-part=tree]{position:relative}
+#ips-xml-widget .ix-node{display:flex;align-items:center;gap:6px;height:26px;padding:0 8px 0 0;white-space:nowrap;cursor:pointer;user-select:none;border-left:3px solid transparent}
+#ips-xml-widget .ix-node:hover{background:#f1f5f9}
+#ips-xml-widget .ix-node.selected{background:#dbeafe;color:#1d4ed8}
+#ips-xml-widget .ix-node.ix-group{font-weight:700}
+#ips-xml-widget .ix-node.ix-group-order{color:#075985}
+#ips-xml-widget .ix-node.ix-order-root{border-left-color:#64748b;background:#f8fafc;font-weight:600}
+#ips-xml-widget .ix-node.ix-order-nested{border-left-color:#0284c7;background:#f0f9ff;font-weight:600}
 #ips-xml-widget .ix-node.ix-order-root:hover,#ips-xml-widget .ix-node.ix-order-nested:hover{background:#e0f2fe}
 #ips-xml-widget .ix-node.ix-order-root.selected,#ips-xml-widget .ix-node.ix-order-nested.selected{background:#bfdbfe;color:#1d4ed8}
-#ips-xml-widget .ix-order-chip{flex:none;padding:1px 5px;border:1px solid #93c5fd;border-radius:4px;background:#dbeafe;color:#1e40af;font-size:10px;font-weight:700;line-height:1.5}
-#ips-xml-widget .ix-order-root .ix-order-chip{background:#e2e8f0;border-color:#cbd5e1;color:#334155}
-#ips-xml-widget .ix-group-order{color:#075985}
+/* expander: one fixed box for every row, even leaves, so columns line up */
+#ips-xml-widget .ix-exp{display:inline-flex;align-items:center;justify-content:center;flex:0 0 18px;width:18px;height:18px;border:1px solid transparent;border-radius:3px;font:700 12px/1 Arial,sans-serif;color:#475569}
+#ips-xml-widget .ix-exp.has{border-color:#a8b5c5;background:#fff}
+#ips-xml-widget .ix-exp.has:hover{border-color:#2563eb;color:#2563eb}
+/* icon: one fixed box; image or fallback badge always fills exactly 18x18 */
+#ips-xml-widget .ix-ico{display:inline-flex;align-items:center;justify-content:center;flex:0 0 18px;width:18px;height:18px;overflow:hidden;border-radius:3px}
+#ips-xml-widget .ix-ico img{display:block;width:100%;height:100%;object-fit:contain}
+#ips-xml-widget .ix-ico-badge{color:#fff;font:700 9px/18px Arial,sans-serif;letter-spacing:-.2px;text-align:center}
+#ips-xml-widget .ix-label{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+#ips-xml-widget .ix-label mark{background:#fde68a;color:inherit;border-radius:2px;padding:0 1px}
+#ips-xml-widget .ix-count{flex:none;color:#64748b;font-size:11px;font-weight:normal}
+#ips-xml-widget .ix-tag{color:#7c3aed}
+
+/* ---------- details ---------- */
+#ips-xml-widget .ix-detail-head{padding:10px 12px;border-bottom:1px solid #e2e8f0;font-weight:bold;overflow-wrap:anywhere}
 #ips-xml-widget .ix-path{padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#475569;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
 #ips-xml-widget .ix-order-note{padding:6px 12px;border-bottom:1px solid #e2e8f0;color:#075985;background:#f0f9ff;font-size:12px}
-@media(max-width:680px){#ips-xml-widget .ix-summary{gap:5px;padding:6px}#ips-xml-widget .ix-stat{font-size:11px}}
-#ips-xml-widget button:disabled,#ips-xml-widget .ix-file.ix-disabled{opacity:.55;cursor:not-allowed}
-#ips-xml-widget button:disabled:hover{background:#fff}
-#ips-xml-widget .ix-file.ix-disabled{pointer-events:none;background:#94a3b8}
+#ips-xml-widget .ix-attrs{width:100%;border-collapse:collapse;table-layout:fixed}
+#ips-xml-widget .ix-attrs th,#ips-xml-widget .ix-attrs td{padding:6px 8px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+#ips-xml-widget .ix-attrs th{width:47%;font-weight:normal;color:#526174;background:#fafcff}
+#ips-xml-widget .ix-attrs tr:hover td,#ips-xml-widget .ix-attrs tr:hover th{background:#eff6ff}
+
+/* ---------- source editor / settings / status ---------- */
+#ips-xml-widget .ix-editor{display:none;padding:10px;height:590px}
+#ips-xml-widget textarea{width:100%;height:calc(100% - 42px);resize:vertical;min-height:280px;border:1px solid #cbd5e1;border-radius:5px;padding:10px;font:12px/1.5 Consolas,monospace;white-space:pre;tab-size:2}
 #ips-xml-widget textarea:read-only{background:#f8fafc}
-/* Compact context view: search + a single grouped tree with Amount column. */
-#ips-xml-widget .ix-amount,#ips-xml-widget .ix-amount-head{display:none}
-#ips-xml-widget.ix-compact{display:flex;flex-direction:column;width:100%!important;max-width:none!important;min-width:0;min-height:0;height:clamp(420px,68vh,1000px);align-self:stretch;justify-self:stretch}
-#ips-xml-widget.ix-compact .ix-loading{flex:none}
-#ips-xml-widget.ix-compact .ix-toolbar > :not(.ix-search):not([data-act=expand]):not([data-act=collapse]){display:none!important}
-#ips-xml-widget.ix-compact .ix-toolbar{padding:8px}
-#ips-xml-widget.ix-compact .ix-search{min-width:0;width:100%;flex:1}
-#ips-xml-widget.ix-compact .ix-tabs,#ips-xml-widget.ix-compact .ix-summary,#ips-xml-widget.ix-compact .ix-right,#ips-xml-widget.ix-compact .ix-editor,#ips-xml-widget.ix-compact .ix-settings{display:none!important}
-#ips-xml-widget.ix-compact .ix-layout{display:block;flex:1 1 auto;height:auto;min-height:0;min-width:0;overflow:hidden}
-#ips-xml-widget.ix-compact .ix-left{width:100%;height:100%;min-width:0;border-right:0}
-#ips-xml-widget.ix-compact .ix-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
-#ips-xml-widget.ix-compact .ix-amount-head{display:block;flex:0 0 96px;text-align:right;padding-right:10px}
-#ips-xml-widget.ix-compact .ix-node{width:100%;padding-right:0}
-#ips-xml-widget.ix-compact .ix-label{min-width:0;flex:1}
-#ips-xml-widget.ix-compact .ix-count{flex:none}
-#ips-xml-widget.ix-compact .ix-amount{display:block;flex:0 0 96px;max-width:96px;text-align:right;padding:2px 10px 2px 6px;border-left:1px solid #e2e8f0;color:#334155;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
-#ips-xml-widget.ix-compact .ix-status:not(.ix-error){display:none}
+#ips-xml-widget .ix-settings{display:none;padding:12px;border-bottom:1px solid #e2e8f0;background:#f8fafc}
+#ips-xml-widget .ix-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#ips-xml-widget .ix-setting{display:flex;align-items:center;gap:6px}
+#ips-xml-widget .ix-setting label{min-width:45px}
+#ips-xml-widget .ix-setting input{width:100%;min-width:0;padding:5px;border:1px solid #cbd5e1;border-radius:4px}
+#ips-xml-widget .ix-status{border-top:1px solid #dce4ed;padding:7px 12px;background:#f8fafc;color:#64748b;font-size:12px}
+#ips-xml-widget .ix-status.ix-error{color:#b91c1c}
+
+/* ---------- loading ---------- */
 #ips-xml-widget .ix-loading{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #bfdbfe;background:#eff6ff;color:#1e40af;font-size:13px}
 #ips-xml-widget .ix-loading-text{flex:1;min-width:0;font-weight:600}
 #ips-xml-widget .ix-loading-text small{display:block;font-size:11px;color:#475569;font-weight:400;margin-top:2px}
 #ips-xml-widget .ix-spinner{flex:none;width:22px;height:22px;border:3px solid #bfdbfe;border-top-color:#2563eb;border-radius:50%;animation:ix-spin .8s linear infinite}
 @keyframes ix-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){#ips-xml-widget .ix-spinner{animation:none;border-color:#2563eb}}
-#ips-xml-widget.ix-compact .ix-toolbar{min-width:0}
-#ips-xml-widget.ix-compact .ix-toolbar button{flex:0 0 auto;white-space:nowrap}
-#ips-xml-widget.ix-compact .ix-search{min-width:110px}
 
-#ips-xml-widget.ix-compact{height:clamp(380px,68vh,900px)}@media(max-width:680px){#ips-xml-widget.ix-compact{height:clamp(360px,70vh,720px)}#ips-xml-widget.ix-compact .ix-layout{height:auto;display:block}#ips-xml-widget.ix-compact .ix-amount,#ips-xml-widget.ix-compact .ix-amount-head{flex-basis:78px;max-width:78px}}
+/* ---------- amount column (compact only) ---------- */
+#ips-xml-widget .ix-amount,#ips-xml-widget .ix-amount-head,#ips-xml-widget .ix-measure,#ips-xml-widget .ix-measure-head{display:none}
+
+/* ---------- compact context view: search + grouped tree with Amount column ---------- */
+#ips-xml-widget.ix-compact{display:flex;flex-direction:column;width:100%!important;max-width:none!important;min-width:0;min-height:0;height:clamp(380px,68vh,900px);align-self:stretch;justify-self:stretch}
+#ips-xml-widget.ix-compact .ix-loading{flex:none}
+#ips-xml-widget.ix-compact .ix-toolbar{padding:8px}
+#ips-xml-widget.ix-compact .ix-toolbar > :not(.ix-search):not([data-act=expand]):not([data-act=collapse]):not([data-act=toggle-attrs]):not(.ix-group-toggle):not(.ix-sources){display:none!important}
+#ips-xml-widget.ix-compact .ix-toolbar button{flex:0 0 auto;white-space:nowrap}
+#ips-xml-widget.ix-compact .ix-search{min-width:110px;width:100%;flex:1}
+#ips-xml-widget.ix-compact .ix-tabs,#ips-xml-widget.ix-compact .ix-summary,#ips-xml-widget.ix-compact .ix-editor,#ips-xml-widget.ix-compact .ix-settings{display:none!important}
+#ips-xml-widget.ix-compact .ix-layout{display:block;flex:1 1 auto;height:auto;min-height:0;min-width:0;overflow:hidden}
+#ips-xml-widget.ix-compact .ix-left{width:100%;height:100%;min-width:0;border-right:0}
+/* compact with attributes shown: same two-column grid as the full view */
+#ips-xml-widget.ix-compact:not(.ix-no-attrs) .ix-layout{display:grid;grid-template-rows:minmax(0,1fr)}
+#ips-xml-widget.ix-compact .ix-right{min-height:0}
+#ips-xml-widget.ix-compact .ix-amount-head{display:block;flex:0 0 96px;text-align:right;padding-right:10px}
+/* unit column (MeasureName): shown only when at least one node of the file has it */
+#ips-xml-widget.ix-compact.ix-has-measure .ix-measure-head{display:block;flex:0 0 90px;padding-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ips-xml-widget.ix-compact.ix-has-measure .ix-measure{display:block;align-self:stretch;flex:0 0 90px;max-width:90px;padding:0 6px 0 8px;line-height:26px;border-left:1px solid #e2e8f0;color:#475569;font-weight:normal;overflow:hidden;text-overflow:ellipsis}
+#ips-xml-widget.ix-compact .ix-node{padding-right:0}
+#ips-xml-widget.ix-compact .ix-amount{display:block;align-self:stretch;flex:0 0 96px;max-width:96px;text-align:right;padding:0 10px 0 6px;line-height:26px;border-left:1px solid #e2e8f0;color:#334155;font-weight:normal;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
+#ips-xml-widget.ix-compact .ix-status:not(.ix-error){display:none}
+
+@media(max-width:680px){
+ #ips-xml-widget .ix-layout{grid-template-columns:1fr;grid-template-rows:55% 45%;height:700px}
+ #ips-xml-widget .ix-left{border-bottom:1px solid #cbd5e1}
+ #ips-xml-widget .ix-splitter{display:none}
+ #ips-xml-widget.ix-no-attrs .ix-layout{grid-template-rows:1fr}
+ #ips-xml-widget .ix-settings-grid{grid-template-columns:1fr}
+ #ips-xml-widget .ix-summary{gap:5px;padding:6px}
+ #ips-xml-widget .ix-stat{font-size:11px}
+ #ips-xml-widget.ix-compact{height:clamp(360px,70vh,720px)}
+ #ips-xml-widget.ix-compact .ix-layout{height:auto;display:block}
+ #ips-xml-widget.ix-compact:not(.ix-no-attrs) .ix-layout{display:grid;grid-template-columns:1fr;grid-template-rows:minmax(0,55%) minmax(0,45%)}
+ #ips-xml-widget.ix-compact .ix-amount,#ips-xml-widget.ix-compact .ix-amount-head{flex-basis:78px;max-width:78px}
+ #ips-xml-widget.ix-compact.ix-has-measure .ix-measure,#ips-xml-widget.ix-compact.ix-has-measure .ix-measure-head{flex-basis:64px;max-width:64px}
+}
 </style>
-<div class="ix-toolbar"><label class="ix-file">Открыть XML<input type="file" accept=".xml,text/xml,application/xml" data-act="file"></label><button type="button" data-act="paste">Вставить XML</button><input class="ix-search" type="search" placeholder="Поиск по структуре и атрибутам..." data-act="search"><label><input type="checkbox" data-act="group-type" checked> Группировать по типу</label><button type="button" data-act="expand">Развернуть</button><button type="button" data-act="collapse">Свернуть</button><button type="button" data-act="icons">Иконки</button></div>
+<div class="ix-toolbar"><div class="ix-sources ix-hidden" data-part="sources" role="group" aria-label="Файл XML"><button type="button" data-source="xml" title="Context.data.xml">Состав</button><button type="button" data-source="rkd" title="Context.data.xml_rkd">РКД</button></div><label class="ix-file">Открыть XML<input type="file" accept=".xml,text/xml,application/xml" data-act="file"></label><button type="button" data-act="paste">Вставить XML</button><input class="ix-search" type="search" placeholder="Поиск по структуре и атрибутам..." data-act="search"><label class="ix-group-toggle"><input type="checkbox" data-act="group-type" checked> Группировать по типу</label><button type="button" data-act="expand">Развернуть</button><button type="button" data-act="collapse">Свернуть</button><button type="button" data-act="icons">Иконки</button><button type="button" data-act="toggle-attrs" aria-pressed="false">Скрыть атрибуты</button></div>
 <div class="ix-loading ix-hidden" data-part="loading" role="status" aria-live="polite" aria-busy="false"><span class="ix-spinner" aria-hidden="true"></span><div class="ix-loading-text"><span data-part="loading-label">Загрузка XML...</span><small data-part="loading-hint">Пожалуйста, не закрывайте читалку</small></div></div>
 <div class="ix-settings" data-part="settings"><div style="margin-bottom:8px">URL изображений для ObjectType. Ссылки должны быть доступны браузеру пользователя.</div><div class="ix-settings-grid" data-part="icon-grid"></div><div style="margin-top:9px"><button type="button" data-act="save-icons">Применить иконки</button></div></div>
 <div class="ix-tabs"><button type="button" class="active" data-tab="ips">Структура IPS</button><button type="button" data-tab="xml">XML-дерево</button><button type="button" data-tab="source">Исходный XML</button></div>
 <div class="ix-summary" data-part="summary" aria-live="polite"></div>
-<div class="ix-layout" data-part="layout"><div class="ix-left"><div class="ix-heading"><span data-part="tree-title">Структура изделий</span><span class="ix-amount-head">Количество</span></div><div data-part="tree"><div class="ix-empty">Загрузите XML-файл или передайте XML программно.</div></div></div><div class="ix-right"><div class="ix-heading">Атрибуты выбранного объекта <button type="button" style="float:right;padding:1px 7px" data-act="copy-attrs">Копировать</button></div><div data-part="detail"><div class="ix-empty">Выберите узел слева.</div></div></div></div>
+<div class="ix-layout" data-part="layout"><div class="ix-left" tabindex="0" role="tree" aria-label="Структура"><div class="ix-heading"><span data-part="tree-title">Структура изделий</span><span class="ix-amount-head">Количество</span><span class="ix-measure-head" title="MeasureName">Ед. изм.</span></div><div data-part="tree"><div class="ix-empty">Загрузите XML-файл или передайте XML программно.</div></div></div><div class="ix-splitter" data-part="splitter" role="separator" aria-orientation="vertical" aria-label="Ширина левой колонки" aria-valuemin="15" aria-valuemax="85" tabindex="0" title="Потяните, чтобы изменить ширину. Двойной клик — сбросить"></div><div class="ix-right"><div class="ix-heading"><span>Атрибуты выбранного объекта</span><button type="button" data-act="copy-attrs">Копировать</button></div><div data-part="detail"><div class="ix-empty">Выберите узел слева.</div></div></div></div>
 <div class="ix-editor" data-part="editor"><div style="margin-bottom:8px"><button type="button" data-act="apply-source">Применить XML</button> <button type="button" data-act="format">Форматировать</button> <button type="button" data-act="copy-source">Копировать XML</button></div><textarea spellcheck="false" data-part="source" placeholder="Вставьте XML сюда..."></textarea></div>
 <div class="ix-status" data-part="status">Ожидание XML</div>
 <script>
 (function(){
 'use strict';
-var root=document.getElementById('ips-xml-widget');if(!root||root.dataset.initialized)return;root.dataset.initialized='1';
-var $=function(s){return root.querySelector(s)}, $$=function(s){return Array.prototype.slice.call(root.querySelectorAll(s))};
-var types={'1074':['Сборочная единица','▣'],'1078':['Комплект','▤'],'2893':['Комплект ЗИП','▥'],'2910':['Комплект КМЧ','▦'],'5120':['Комплект СИЗ','▧'],'1052':['Деталь','◆'],'1138':['Прочие изделия','◇'],'1128':['Материалы','▰'],'1125':['Материалы','▰']};
+var root=document.getElementById('ips-xml-widget');
+if(!root||root.dataset.initialized)return;
+root.dataset.initialized='1';
+
+/* ======================= constants & config ======================= */
+var ROW_H=26;          // must match .ix-node height in CSS
+var OVERSCAN=15;       // extra rows rendered above/below the viewport
+var SEARCH_DELAY=180;  // ms debounce for search input
+var XSI='http://www.w3.org/2001/XMLSchema-instance';
+var IPS_OBJECT_URL='ips://object/'; // double click on a node opens IPS_OBJECT_URL + ObjectID
+
+// ObjectType -> name, short badge text and colour (badge is used when no image URL is set or it fails to load).
+var TYPES={
+ '1074':{name:'Сборочная единица',abbr:'СЕ',color:'#2563eb'},
+ '1078':{name:'Комплект',abbr:'К',color:'#7c3aed'},
+ '2893':{name:'Комплект ЗИП',abbr:'ЗИП',color:'#9333ea'},
+ '2910':{name:'Комплект КМЧ',abbr:'КМЧ',color:'#a21caf'},
+ '5120':{name:'Комплект СИЗ',abbr:'СИЗ',color:'#c026d3'},
+ '1052':{name:'Деталь',abbr:'Д',color:'#0891b2'},
+ '1138':{name:'Прочие изделия',abbr:'П',color:'#d97706'},
+ '1128':{name:'Материалы',abbr:'М',color:'#16a34a'},
+ '1125':{name:'Материалы',abbr:'М',color:'#16a34a'}
+};
 // Укажите здесь URL изображений, если хотите зашить их в код виджета.
 var iconUrls={'1078':'https://work.starenergo.ru/api/diskauth/files/download/attachment/01a13f06-9368-78c9-8032-c90183c36f81','2910':'https://work.starenergo.ru/api/diskauth/files/download/attachment/01a13f06-9368-78c9-8032-c90183c36f81','2893':'https://work.starenergo.ru/api/diskauth/files/download/attachment/01a13f06-9368-78c9-8032-c90183c36f81','1128':'https://work.starenergo.ru/api/diskauth/files/download/attachment/01a13f06-9344-78c8-9932-9c8f1b2d0d06','1125':'https://work.starenergo.ru/api/diskauth/files/download/attachment/01a13f06-9344-78c8-9932-9c8f1b2d0d06','5120':'https://work.starenergo.ru/api/diskauth/files/download/attachment/01a13f06-9368-78c9-8032-c90183c36f81','1074':'https://work.starenergo.ru/api/diskauth/files/download/attachment/01a13f06-9323-78c5-bc28-175ca10fd0c7','1052':'https://work.starenergo.ru/api/diskauth/files/download/attachment/01a13f06-933c-78c7-8c2b-6d50918bdec0','1138':'https://work.starenergo.ru/api/diskauth/files/download/attachment/01a13f06-9317-78c4-b9e4-787a1b625414'};
-var xmlDoc=null,raw='',view='ips',nodes=[],roots=[],selected=null,seq=0,search='',filtered=null,expanded=new Set(),rowById=new Map(),renderLimit=12000,groupByType=true,collapsedGroups=new Set(),activeOrderXml=null,contextFilePresent=root.dataset.elmaFilePresent==='1',contextDownload=window['ELMA_IPS_XML_CONTEXT_DOWNLOAD'],orderObjectId=normalizeId(root.dataset.elmaObjectid),compactMode=root.dataset.elmaCompact==='1';
+
+/* ======================= state ======================= */
+var xmlDoc=null,raw='',view='ips',groupByType=true;
+var nodes=[],roots=[],nodeById=new Map(),nodeByXml=new Map(),activeOrderXml=null,seq=0;
+var query='';
+var ipsMatch=null,ipsVisible=null;   // Set<node id> while searching
+var xmlMatch=null,xmlVisible=null;   // Set<Element> while searching
+var openIps=new Set(),openXml=new Set();          // expanded row keys
+var savedOpenIps=null,savedOpenXml=null;          // expansion before search, restored when search is cleared
+var rows=[];                                      // flattened visible rows of the current view
+var selection={ips:null,xml:null};                // selected row key per view
+var renderedRange=null;                           // [start,end] currently in DOM
+// Button labels come from Context.data.button_name_1 / button_name_2; defaults when empty.
+var buttonNames=window['ELMA_IPS_XML_BUTTON_NAMES']||{};
+var SOURCE_INFO={xml:{label:buttonNames.xml||'Состав',field:'Context.data.xml'},rkd:{label:buttonNames.rkd||'РКД',field:'Context.data.xml_rkd'}};
+var sourcePresent={xml:root.dataset.elmaFilePresent==='1',rkd:root.dataset.elmaRkdPresent==='1'};
+var contextFilePresent=sourcePresent.xml||sourcePresent.rkd;
+var contextSources=window['ELMA_IPS_XML_CONTEXT_SOURCES']||{};
+var contextDownload=window['ELMA_IPS_XML_CONTEXT_DOWNLOAD']; // pre-requested URL of the main file (used once)
+var activeSource=null;      // 'xml' | 'rkd' — which context file is shown
+var sourceText={};          // downloaded XML text per source (downloaded once)
+var sourceView={};          // tree state per source: expanded rows, selection, scroll
+var orderObjectId=normalizeId(root.dataset.elmaObjectid);
+var compactMode=root.dataset.elmaCompact==='1';
+
+/* ======================= DOM helpers ======================= */
+function $(s){return root.querySelector(s)}
+function $$(s){return Array.prototype.slice.call(root.querySelectorAll(s))}
 function el(tag,cls,text){var n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n}
-function status(s,error){var e=$('[data-part=status]');e.textContent=s;e.style.color=error?'#b91c1c':'#64748b';e.classList.toggle('ix-error',!!error)}
-function loading(stage,hint){var panel=$('[data-part=loading]');panel.classList.remove('ix-hidden');panel.setAttribute('aria-busy','true');$('[data-part=loading-label]').textContent=stage;$('[data-part=loading-hint]').textContent=hint||'Большие файлы могут обрабатываться дольше'}
-function loadingDone(){var panel=$('[data-part=loading]');panel.classList.add('ix-hidden');panel.setAttribute('aria-busy','false')}
+var treeHost=$('[data-part=tree]'),scroller=$('.ix-left'),sourceBox=$('[data-part=source]');
+
+function status(s,error){var e=$('[data-part=status]');e.textContent=s;e.classList.toggle('ix-error',!!error)}
+function loading(stage,hint){var p=$('[data-part=loading]');p.classList.remove('ix-hidden');p.setAttribute('aria-busy','true');$('[data-part=loading-label]').textContent=stage;$('[data-part=loading-hint]').textContent=hint||'Большие файлы могут обрабатываться дольше'}
+function loadingDone(){var p=$('[data-part=loading]');p.classList.add('ix-hidden');p.setAttribute('aria-busy','false')}
 function afterPaint(){return new Promise(function(resolve){if(typeof requestAnimationFrame==='function')requestAnimationFrame(function(){setTimeout(resolve,0)});else setTimeout(resolve,0)})}
+
 // ELMA365 can render a user widget inside an inline/shrink-to-fit wrapper.
 // Expand only the exclusive wrapper chain of this widget. Never change tabs,
 // columns, dialogs, or ancestors that also contain other form controls.
-function fitCompactWidth(){
- if(!compactMode)return;
+function fitWidth(){
  root.style.width='100%';root.style.maxWidth='none';root.style.minWidth='0';
  var child=root,parent=root.parentElement,level=0;
  while(parent&&level++<8){
@@ -111,53 +271,674 @@ function fitCompactWidth(){
   child=parent;parent=parent.parentElement;
  }
 }
-function initCompactSizing(){if(compactMode)fitCompactWidth()}
-function directChildren(node,name){return Array.prototype.filter.call(node.children||[],function(x){return x.localName===name})}
-function attr(n,k){return n.getAttribute(k)||''}
+
+/* ======================= XML model ======================= */
+function attr(x,k){return x.getAttribute(k)||''}
+function elementChildren(x){return x.children?Array.prototype.slice.call(x.children):[]}
 // XmlSerializer may encode a derived Order as <Order> or <IpsObject xsi:type="Order">.
-function isOrderXml(x){if(x.localName==='Order')return true;if(x.localName!=='IpsObject')return false;var type=x.getAttributeNS('http://www.w3.org/2001/XMLSchema-instance','type')||x.getAttribute('xsi:type')||'';return type.split(':').pop()==='Order'}
-// Match only Order (also <IpsObject xsi:type="Order">) by its own ObjectID.
-function normalizeId(value){var v=String(value==null?'':value).trim();return /^-?\d+$/.test(v)?v.replace(/^(-?)0+(?=\d)/,'$1'):v}
+function isOrderXml(x){
+ if(x.localName==='Order')return true;
+ if(x.localName!=='IpsObject')return false;
+ var t=x.getAttributeNS(XSI,'type')||x.getAttribute('xsi:type')||'';
+ return t.split(':').pop()==='Order';
+}
+function isIpsXml(x){return x.localName==='IpsObject'||x.localName==='Order'}
+function normalizeId(v){v=String(v==null?'':v).trim();return /^-?\d+$/.test(v)?v.replace(/^(-?)0+(?=\d)/,'$1'):v}
 function xmlOrderId(x){var a=x.attributes||[];for(var i=0;i<a.length;i++)if(String(a[i].localName||a[i].name).toLowerCase()==='objectid')return normalizeId(a[i].value);return ''}
-function findOrderById(doc,id){var all=doc.getElementsByTagName('*');for(var i=0;i<all.length;i++)if(isOrderXml(all[i])&&xmlOrderId(all[i])===id)return all[i];return null}
+// Find the object to show for Context.data.objectid: an Order first; if no Order has this ObjectID,
+// any IpsObject with it (so a nested item of the composition can be opened as the root too).
+// The same ObjectID can occur several times in the file (one item used in many places): the first one wins.
+function findOrderById(doc,id){
+ var all=doc.getElementsByTagName('*'),fallback=null;
+ for(var i=0;i<all.length;i++){
+  var x=all[i];if(!isIpsXml(x)||xmlOrderId(x)!==id)continue;
+  if(isOrderXml(x))return x;
+  if(!fallback)fallback=x;
+ }
+ return fallback;
+}
+function label(x){
+ var full=attr(x,'FullName');if(full)return full;
+ var des=attr(x,'Designation'),name=attr(x,'Name')||attr(x,'Caption');
+ if(des&&name)return des+' ('+name+')';
+ return des||name||x.tagName;
+}
+function haystackOf(x,extra){
+ var parts=[x.localName].concat(extra||[]),a=x.attributes;
+ for(var i=0;i<a.length;i++)parts.push(a[i].name+'='+a[i].value);
+ return parts.join('\n').toLowerCase();
+}
+function makeNode(x,parent){
+ var n={id:++seq,xml:x,parent:parent,children:[],name:label(x),type:attr(x,'ObjectType'),tag:x.localName,isOrder:isOrderXml(x),depth:parent?parent.depth+1:0};
+ n.hay=haystackOf(x,[n.name,n.type]);
+ nodes.push(n);nodeById.set(n.id,n);nodeByXml.set(x,n);
+ elementChildren(x).forEach(function(c){
+  if(c.localName!=='Composition')return;
+  elementChildren(c).forEach(function(child){if(isIpsXml(child))n.children.push(makeNode(child,n))});
+ });
+ return n;
+}
+function xmlTop(){if(!xmlDoc)return null;return orderObjectId?activeOrderXml:xmlDoc.documentElement}
 function sourceViewText(){return orderObjectId?(activeOrderXml?'<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(activeOrderXml):''):raw}
-function label(n){return attr(n,'FullName')||[attr(n,'Designation'),attr(n,'Name')||attr(n,'Caption')].filter(Boolean).join(' (')+(attr(n,'Designation')&&(attr(n,'Name')||attr(n,'Caption'))?')':'')||attr(n,'Caption')||n.tagName}
-function makeNode(x,parent){var n={id:++seq,xml:x,parent:parent,children:[],name:label(x),type:attr(x,'ObjectType'),tag:x.localName,isOrder:isOrderXml(x),depth:parent?parent.depth+1:0};nodes.push(n);var compositions=directChildren(x,'Composition');compositions.forEach(function(c){Array.prototype.forEach.call(c.children,function(child){if(child.localName==='IpsObject'||child.localName==='Order')n.children.push(makeNode(child,n))})});return n}
-function build(){nodes=[];roots=[];seq=0;activeOrderXml=null;var top=xmlDoc.documentElement;if(orderObjectId){activeOrderXml=findOrderById(xmlDoc,orderObjectId);if(activeOrderXml)roots.push(makeNode(activeOrderXml,null))}else if(top.localName==='Order'||top.localName==='IpsObject')roots.push(makeNode(top,null));else Array.prototype.forEach.call(top.children,function(x){if(x.localName==='Order'||x.localName==='IpsObject')roots.push(makeNode(x,null))});expanded=new Set();resetCollapsedGroups();selected=roots[0]||null;filtered=visibleSet(search);updateSummary();}
-function resetCollapsedGroups(){collapsedGroups=new Set();function visitGroups(children,parentKey){var seen=new Set();children.forEach(function(n){var type=n.type||'unknown',key=(n.isOrder?'order:':'')+(type==='1125'?'1128':type);if(!seen.has(key)){collapsedGroups.add(parentKey+':'+key);seen.add(key)}visitGroups(n.children,'n'+n.id)})}visitGroups(roots,'root')}
-function updateSummary(){var rootOrders=roots.filter(function(n){return n.isOrder}).length;var nestedOrders=nodes.filter(function(n){return n.isOrder&&n.parent}).length;var materials=nodes.filter(function(n){return n.type==='1128'||n.type==='1125'}).length;var maxDepth=nodes.reduce(function(max,n){return Math.max(max,n.depth)},0);var stats=[['Заказов в корне',rootOrders,''],['Вложенных заказов',nestedOrders,'ix-stat-nested'],['Материалов',materials,''],['Всего позиций',nodes.length,''],['Глубина',nodes.length?maxDepth+1:0,'']];var host=$('[data-part=summary]');host.replaceChildren();stats.forEach(function(item){var e=el('span','ix-stat'+(item[2]?' '+item[2]:''));e.appendChild(el('span','',item[0]+':'));e.appendChild(el('strong','',String(item[1])));host.appendChild(e)})}
-function parse(text){var d=new DOMParser().parseFromString(text,'application/xml'),err=d.getElementsByTagName('parsererror')[0];if(err){status('Ошибка XML: '+err.textContent.trim().slice(0,300),true);return false}xmlDoc=d;raw=text;build();$('[data-part=source]').value=sourceViewText();view='ips';switchTab();if(orderObjectId){if(!activeOrderXml)status('Order с ObjectID='+orderObjectId+' не найден в XML. Другие заказы скрыты.',true);else status('Загружен только Order с ObjectID='+orderObjectId+'; позиций в составе: '+nodes.length);return true}status('Загружено: '+roots.length+' корневых объектов, '+nodes.length+' объектов всего; вложенных заказов: '+nodes.filter(function(n){return n.isOrder&&n.parent}).length);return true}
-function matching(n,q){if(((q==='заказ'||q==='заказы'||q==='order')&&n.isOrder)||n.tag.toLowerCase().indexOf(q)>=0)return true;if(n.name.toLowerCase().indexOf(q)>=0||n.type.indexOf(q)>=0)return true;return Array.prototype.some.call(n.xml.attributes,function(a){return a.name.toLowerCase().indexOf(q)>=0||a.value.toLowerCase().indexOf(q)>=0})}
-function visibleSet(q){if(!q)return null;var set=new Set();nodes.forEach(function(n){if(matching(n,q)){var p=n;while(p){set.add(p.id);p=p.parent}}});return set}
-function icon(n){var wrap=el('span');var u=iconUrls[n.type];if(u){var img=el('img','ix-icon');img.src=u;img.alt=types[n.type]?types[n.type][0]:n.type;img.onerror=function(){wrap.replaceChildren(fallback(n))};wrap.appendChild(img)}else wrap.appendChild(fallback(n));return wrap}
-function fallback(n){var f=el('span','ix-fallback',(types[n.type]||['','◻'])[1]);f.title=(types[n.type]||['Тип '+n.type])[0];return f}
-function amountCell(n){var amount=n?attr(n.xml,'Amount')||attr(n.xml,'amount'):'',cell=el('span','ix-amount',n?(amount||'—'):'');if(n)cell.title='Amount: '+(amount||'не указан');return cell}
-function drawIps(){var host=$('[data-part=tree]');host.replaceChildren();rowById=new Map();if(!roots.length){host.appendChild(el('div','ix-empty',orderObjectId?'Order с ObjectID='+orderObjectId+' не найден в XML.':'Объекты Order / IpsObject не найдены'));return}var frag=document.createDocumentFragment(),count=0;function visitChildren(children,depth,parentKey){if(!groupByType){children.forEach(function(n){visit(n,depth)});return}var groups=new Map();children.forEach(function(n){if(filtered&&!filtered.has(n.id))return;var type=n.type||'unknown',key=(n.isOrder?'order:':'')+(type==='1125'?'1128':type);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(n)});groups.forEach(function(items,type){if(count>=renderLimit)return;var key=parentKey+':'+type,closed=collapsedGroups.has(key)&&!filtered,line=el('div','ix-node');line.style.paddingLeft=(depth*19+8)+'px';line.appendChild(el('span','ix-exp has',closed?'+':'−'));var groupIsOrder=type.indexOf('order:')===0,groupType=groupIsOrder?type.slice(6):type;if(groupIsOrder)line.classList.add('ix-group-order');line.appendChild(icon({type:groupType}));line.appendChild(el('span','ix-label',(groupIsOrder?'Заказы · ':'')+(types[groupType]?types[groupType][0]:'Тип '+groupType)+' ('+items.length+')'));line.style.fontWeight='bold';line.appendChild(amountCell(null));line.onclick=function(){if(collapsedGroups.has(key))collapsedGroups.delete(key);else collapsedGroups.add(key);drawIps()};frag.appendChild(line);count++;if(!closed)items.forEach(function(n){visit(n,depth+1)})})}function visit(n,depth){if(filtered&&!filtered.has(n.id)||count>=renderLimit)return;count++;var line=el('div','ix-node'+(selected===n?' selected':'')+(n.isOrder?(n.parent?' ix-order-nested':' ix-order-root'):''));line.style.paddingLeft=(depth*19+8)+'px';line.dataset.id=n.id;var exp=el('span','ix-exp'+(n.children.length?' has':''),n.children.length?(expanded.has(n.id)||filtered?'−':'+'):'');line.appendChild(exp);line.appendChild(icon(n));if(n.isOrder){var chip=el('span','ix-order-chip',n.parent?'↳ Order':'Order');chip.title=n.parent?'Вложенный производственный заказ':'Корневой производственный заказ';line.appendChild(chip)}var name=el('span','ix-label',n.name);name.title=n.name;line.appendChild(name);if(n.children.length)line.appendChild(el('span','ix-count','('+n.children.length+')'));line.appendChild(amountCell(n));line.addEventListener('click',function(e){if(compactMode){if(n.children.length&&!filtered){if(expanded.has(n.id))expanded.delete(n.id);else expanded.add(n.id);drawIps()}return}if(e.target===exp&&n.children.length){if(expanded.has(n.id))expanded.delete(n.id);else expanded.add(n.id);drawIps();return}selected=n;showDetail(n.xml,n);var prev=host.querySelector('.ix-node.selected');if(prev)prev.classList.remove('selected');line.classList.add('selected');if(n.children.length&&e.detail===2){if(expanded.has(n.id))expanded.delete(n.id);else expanded.add(n.id);drawIps()}});rowById.set(n.id,line);frag.appendChild(line);if(expanded.has(n.id)||filtered)visitChildren(n.children,depth+1,'n'+n.id)}visitChildren(roots,0,'root');host.appendChild(frag);if(count>=renderLimit)host.appendChild(el('div','ix-empty','Показаны первые '+renderLimit+' строк. Сверните ветки или уточните поиск.'))}
-function showDetail(x,n){var box=$('[data-part=detail]');box.replaceChildren();if(!x){box.appendChild(el('div','ix-empty','Выберите узел слева.'));return}var h=el('div','ix-detail-head',(n?n.name:label(x)));box.appendChild(h);if(n){var chain=[],p=n;while(p){chain.unshift((p.isOrder?'Order: ':'')+p.name);p=p.parent}box.appendChild(el('div','ix-path',chain.join(' → ')));if(n.isOrder)box.appendChild(el('div','ix-order-note',n.parent?'Вложенный Order — состав принадлежит этому заказу внутри родительского изделия.':'Корневой Order — самостоятельный заказ верхнего уровня.'))}var t=el('table','ix-attrs');Array.prototype.forEach.call(x.attributes||[],function(a){var tr=el('tr'),th=el('th','',a.name),td=el('td','',a.value||'—');tr.appendChild(th);tr.appendChild(td);t.appendChild(tr)});box.appendChild(t);if(!x.attributes.length)box.appendChild(el('div','ix-empty','У узла нет атрибутов.'))}
-function drawXml(){var host=$('[data-part=tree]');host.replaceChildren();var count=0;function visit(x,depth){if(count++>renderLimit)return;var children=Array.prototype.filter.call(x.childNodes,function(c){return c.nodeType===1});var line=el('div','ix-node');line.style.paddingLeft=(depth*18+8)+'px';var exp=el('span','ix-exp'+(children.length?' has':''),children.length?'+':'');line.appendChild(exp);line.appendChild(el('span','ix-label','<'+x.tagName+'> '+(attr(x,'FullName')||attr(x,'Name')||'')));host.appendChild(line);var opened=depth===0;function update(){exp.textContent=children.length?(opened?'−':'+'):'';group.style.display=opened?'':'none'}var group=el('div');host.appendChild(group);line.onclick=function(e){if(e.target===exp){opened=!opened;if(opened&&!group.childNodes.length)children.forEach(function(c){visitIn(c,depth+1,group)});update()}else{showDetail(x);$$('.ix-node.selected').forEach(function(y){y.classList.remove('selected')});line.classList.add('selected')}};function visitIn(y,d,into){var ch=Array.prototype.filter.call(y.childNodes,function(c){return c.nodeType===1}),r=el('div','ix-node');r.style.paddingLeft=(d*18+8)+'px';var toggle=el('span','ix-exp'+(ch.length?' has':''),ch.length?'+':'');r.appendChild(toggle);r.appendChild(el('span','ix-label','<'+y.tagName+'> '+(attr(y,'FullName')||attr(y,'Name')||'')));into.appendChild(r);var sub=el('div');into.appendChild(sub);var on=false;r.onclick=function(e){if(e.target===toggle){on=!on;toggle.textContent=on?'−':'+';if(on&&!sub.childNodes.length)ch.forEach(function(c){visitIn(c,d+1,sub)});sub.style.display=on?'':'none'}else{showDetail(y);$$('.ix-node.selected').forEach(function(z){z.classList.remove('selected')});r.classList.add('selected')}};sub.style.display='none'}if(opened)children.forEach(function(c){visitIn(c,depth+1,group)});update()}if(xmlDoc){if(orderObjectId&&!activeOrderXml)host.appendChild(el('div','ix-empty','Order с ObjectID='+orderObjectId+' не найден'));else visit(activeOrderXml||xmlDoc.documentElement,0)}}
-function switchTab(){if(compactMode)view='ips';$$('[data-tab]').forEach(function(b){b.classList.toggle('active',b.dataset.tab===view)});$('[data-part=layout]').classList.toggle('ix-hidden',view==='source');$('[data-part=editor]').style.display=view==='source'?'block':'none';$('[data-part=tree-title]').textContent=view==='xml'?'Дерево XML':'Структура изделий';if(view==='ips'){drawIps();if(!compactMode)showDetail(selected&&selected.xml,selected)}else if(view==='xml'){drawXml();showDetail(null)}else if(raw&&!$('[data-part=source]').value)$('[data-part=source]').value=sourceViewText()}
-function copy(s){if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(s).catch(function(){fallbackCopy(s)});else fallbackCopy(s)}function fallbackCopy(s){var t=el('textarea');t.value=s;t.style.position='fixed';t.style.opacity='0';root.appendChild(t);t.select();try{document.execCommand('copy')}catch(e){}t.remove()}
-function formatXml(xml){var doc=new DOMParser().parseFromString(xml,'application/xml');if(doc.getElementsByTagName('parsererror').length)return xml;var lines=[];function rec(n,d){var pad='  '.repeat(d);if(n.nodeType===1){var attrs=Array.prototype.map.call(n.attributes,function(a){return ' '+a.name+'="'+a.value.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')+'"'}).join('');var children=Array.prototype.filter.call(n.childNodes,function(c){return c.nodeType===1||c.nodeType===3&&c.nodeValue.trim()||c.nodeType===4});if(!children.length){lines.push(pad+'<'+n.tagName+attrs+' />');return}if(children.length===1&&children[0].nodeType===3){lines.push(pad+'<'+n.tagName+attrs+'>'+children[0].nodeValue.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</'+n.tagName+'>');return}lines.push(pad+'<'+n.tagName+attrs+'>');children.forEach(function(c){rec(c,d+1)});lines.push(pad+'</'+n.tagName+'>')}else if(n.nodeType===3)lines.push(pad+n.nodeValue.trim());else if(n.nodeType===4)lines.push(pad+'<![CDATA['+n.nodeValue+']]>')}rec(doc.documentElement,0);return '<?xml version="1.0"?>\n'+lines.join('\n')}
-$('[data-act=file]').addEventListener('change',function(e){if(contextFilePresent)return;var f=e.target.files[0];if(!f)return;var reader=new FileReader();reader.onload=function(){parse(String(reader.result))};reader.onerror=function(){status('Ошибка чтения файла',true)};reader.readAsText(f);e.target.value='' });
-$('[data-act=paste]').onclick=function(){if(contextFilePresent)return;view='source';switchTab();$('[data-part=source]').focus()};
-$('[data-act=search]').addEventListener('input',function(e){search=e.target.value.trim().toLowerCase();filtered=visibleSet(search);if(view==='ips')drawIps();if(search&&filtered)status('Найдено совпадений: '+nodes.filter(function(n){return matching(n,search)}).length+'; отображены совпадения и их родители')});
-$('[data-act=group-type]').onchange=function(e){groupByType=e.target.checked;drawIps()};$('[data-act=expand]').onclick=function(){expanded=new Set(nodes.map(function(n){return n.id}));collapsedGroups.clear();if(view==='ips')drawIps()};$('[data-act=collapse]').onclick=function(){expanded=new Set();resetCollapsedGroups();if(view==='ips')drawIps()};
+
+// Group key helpers. Types 1125 and 1128 are both "Материалы" and share one group.
+function typeKey(n){var t=n.type||'unknown';if(t==='1125')t='1128';return (n.isOrder?'order:':'')+t}
+function parentKeyOf(n){return n.parent?'n'+n.parent.id:'root'}
+function groupKeyOf(n){return 'g|'+parentKeyOf(n)+'|'+typeKey(n)}
+function nodeKey(n){return 'n'+n.id}
+
+function build(){
+ nodes=[];roots=[];seq=0;nodeById=new Map();nodeByXml=new Map();activeOrderXml=null;
+ var top=xmlDoc.documentElement;
+ if(orderObjectId){activeOrderXml=findOrderById(xmlDoc,orderObjectId);if(activeOrderXml)roots.push(makeNode(activeOrderXml,null))}
+ else if(isIpsXml(top))roots.push(makeNode(top,null));
+ else elementChildren(top).forEach(function(x){if(isIpsXml(x))roots.push(makeNode(x,null))});
+ openIps=defaultOpenIps();openXml=defaultOpenXml();savedOpenIps=savedOpenXml=null;
+ selection={ips:roots[0]?nodeKey(roots[0]):null,xml:null};
+ scroller.scrollTop=0;
+ if(query)computeSearch();
+ root.classList.toggle('ix-has-measure',nodes.some(function(n){return !!(attr(n.xml,'MeasureName')||attr(n.xml,'measureName'))}));
+ updateSummary();
+}
+
+/* ======================= expansion ======================= */
+// Initial state: root nodes and their first-level groups are visible.
+function defaultOpenIps(){
+ var s=new Set();
+ roots.forEach(function(r){s.add(groupKeyOf(r));s.add(nodeKey(r))});
+ return s;
+}
+function expandedIps(){
+ var s=new Set();
+ nodes.forEach(function(n){s.add(groupKeyOf(n));if(n.children.length)s.add(nodeKey(n))});
+ return s;
+}
+function defaultOpenXml(){var t=xmlTop(),s=new Set();if(t)s.add(t);return s}
+function expandedXml(){
+ var t=xmlTop(),s=new Set();if(!t)return s;
+ if(t.firstElementChild)s.add(t);
+ var all=t.getElementsByTagName('*');
+ for(var i=0;i<all.length;i++)if(all[i].firstElementChild)s.add(all[i]);
+ return s;
+}
+function openSet(){return view==='xml'?openXml:openIps}
+function isOpen(row){return openSet().has(row.key)}
+function toggle(row){if(!row||!row.hasKids)return;var s=openSet();if(s.has(row.key))s.delete(row.key);else s.add(row.key);refresh()}
+function setOpen(row,open){if(!row||!row.hasKids||isOpen(row)===open)return;toggle(row)}
+function expandAll(){if(view==='xml')openXml=expandedXml();else openIps=expandedIps();refresh()}
+// "Свернуть": everything is closed, including type groups — only the top-level group headers remain
+// (with grouping off: only the root nodes).
+function collapseAll(){if(view==='xml')openXml=new Set();else openIps=new Set();refresh()}
+
+/* ======================= search ======================= */
+function matchNode(n,q){
+ if((q==='заказ'||q==='заказы'||q==='order')&&n.isOrder)return true;
+ return n.hay.indexOf(q)>=0;
+}
+var xmlHay=new WeakMap();
+function matchXml(x,q){
+ var h=xmlHay.get(x);
+ if(h===undefined){var extra=[label(x)];if(!x.firstElementChild&&x.textContent)extra.push(x.textContent.trim());h=haystackOf(x,extra);xmlHay.set(x,h)}
+ return h.indexOf(q)>=0;
+}
+// While searching, ancestors of every match are expanded once. After that the user can
+// collapse/expand freely (previously the search forced everything open and "Свернуть" did nothing).
+function computeSearch(){
+ var q=query;
+ ipsMatch=new Set();ipsVisible=new Set();openIps=new Set();
+ nodes.forEach(function(n){
+  if(!matchNode(n,q))return;
+  ipsMatch.add(n.id);
+  for(var c=n,first=true;c;c=c.parent,first=false){
+   openIps.add(groupKeyOf(c));
+   if(!first)openIps.add(nodeKey(c));
+   if(ipsVisible.has(c.id))break;
+   ipsVisible.add(c.id);
+  }
+ });
+ xmlMatch=new Set();xmlVisible=new Set();openXml=new Set();
+ var top=xmlTop();
+ if(top){
+  var all=[top].concat(Array.prototype.slice.call(top.getElementsByTagName('*')));
+  all.forEach(function(x){
+   if(!matchXml(x,q))return;
+   xmlMatch.add(x);
+   for(var c=x,first=true;c&&c.nodeType===1;c=c===top?null:c.parentNode,first=false){
+    if(!first)openXml.add(c);
+    if(xmlVisible.has(c))break;
+    xmlVisible.add(c);
+   }
+  });
+ }
+}
+function searchStatusText(){
+ var found=view==='xml'?xmlMatch.size:ipsMatch.size;
+ return found?'Найдено совпадений: '+found+'; показаны совпадения и их родители':'Совпадений не найдено';
+}
+function applySearch(q){
+ if(q===query)return;
+ if(q&&!query){savedOpenIps=openIps;savedOpenXml=openXml}
+ query=q;
+ if(!q){
+  ipsMatch=ipsVisible=xmlMatch=xmlVisible=null;
+  if(savedOpenIps){openIps=savedOpenIps;openXml=savedOpenXml}
+  savedOpenIps=savedOpenXml=null;
+  refresh();
+  if(xmlDoc)status(loadedText());
+  return;
+ }
+ computeSearch();
+ scroller.scrollTop=0;
+ refresh();
+ status(searchStatusText());
+}
+
+/* ======================= flatten tree -> rows ======================= */
+function flattenIps(){
+ var out=[];
+ function addList(list,depth,parentKey,parentIdx){
+  // With an ObjectID there is exactly one root Order: show it directly, without a type group above it.
+  // Grouping by type still applies inside its composition.
+  var ungrouped=!groupByType||(parentKey==='root'&&!!orderObjectId);
+  if(ungrouped){list.forEach(function(n){addNode(n,depth,parentIdx)});return}
+  var groups=new Map();
+  list.forEach(function(n){
+   if(ipsVisible&&!ipsVisible.has(n.id))return;
+   var tk=typeKey(n);if(!groups.has(tk))groups.set(tk,[]);groups.get(tk).push(n);
+  });
+  groups.forEach(function(items,tk){
+   var key='g|'+parentKey+'|'+tk;
+   var idx=out.push({kind:'group',key:key,depth:depth,tk:tk,count:items.length,hasKids:true,parent:parentIdx})-1;
+   if(openIps.has(key))items.forEach(function(n){addNode(n,depth+1,idx)});
+  });
+ }
+ function addNode(n,depth,parentIdx){
+  if(ipsVisible&&!ipsVisible.has(n.id))return;
+  var key=nodeKey(n),idx=out.push({kind:'node',key:key,depth:depth,node:n,hasKids:n.children.length>0,parent:parentIdx})-1;
+  if(n.children.length&&openIps.has(key))addList(n.children,depth+1,key,idx);
+ }
+ addList(roots,0,'root',-1);
+ return out;
+}
+function flattenXml(){
+ var out=[],top=xmlTop();if(!top)return out;
+ (function add(x,depth,parentIdx){
+  if(xmlVisible&&!xmlVisible.has(x))return;
+  var kids=x.children,idx=out.push({kind:'xml',key:x,depth:depth,xml:x,hasKids:kids.length>0,parent:parentIdx})-1;
+  if(kids.length&&openXml.has(x))for(var i=0;i<kids.length;i++)add(kids[i],depth+1,idx);
+ })(top,0,-1);
+ return out;
+}
+
+/* ======================= rendering (virtual list) ======================= */
+var frame=0;
+function scheduleRender(force){if(force)renderedRange=null;if(frame)return;frame=(window.requestAnimationFrame||setTimeout)(function(){frame=0;renderWindow()})}
+function refresh(){
+ if(view==='source')return;
+ rows=view==='xml'?flattenXml():flattenIps();
+ renderedRange=null;
+ renderWindow();
+}
+function emptyText(){
+ if(!xmlDoc)return 'Загрузите XML-файл или передайте XML программно.';
+ if(query)return 'Ничего не найдено по запросу «'+query+'».';
+ if(view==='ips'&&!roots.length)return orderObjectId?'Объект с ObjectID='+orderObjectId+' не найден в XML.':'Объекты Order / IpsObject не найдены';
+ if(view==='xml'&&!xmlTop())return 'Объект с ObjectID='+orderObjectId+' не найден';
+ return 'Нет данных.';
+}
+function renderWindow(){
+ if(view==='source')return;
+ if(!rows.length){treeHost.style.height='';treeHost.replaceChildren(el('div','ix-empty',emptyText()));renderedRange=null;return}
+ treeHost.style.height=rows.length*ROW_H+'px';
+ var vh=scroller.clientHeight||800;
+ var top=Math.max(0,scroller.scrollTop-treeHost.offsetTop);
+ var start=Math.max(0,Math.floor(top/ROW_H)-OVERSCAN);
+ var end=Math.min(rows.length,Math.ceil((top+vh)/ROW_H)+OVERSCAN);
+ if(renderedRange&&renderedRange[0]===start&&renderedRange[1]===end)return;
+ renderedRange=[start,end];
+ var box=el('div');box.style.transform='translateY('+start*ROW_H+'px)';
+ var sel=selection[view];
+ for(var i=start;i<end;i++)box.appendChild(renderRow(rows[i],i,rows[i].key===sel));
+ treeHost.replaceChildren(box);
+}
+function highlighted(text,cls){
+ var span=el('span',cls);span.title=text;
+ var i=query?text.toLowerCase().indexOf(query):-1;
+ if(i<0){span.textContent=text;return span}
+ span.appendChild(document.createTextNode(text.slice(0,i)));
+ span.appendChild(el('mark','',text.slice(i,i+query.length)));
+ span.appendChild(document.createTextNode(text.slice(i+query.length)));
+ return span;
+}
+function measureCell(n){
+ var m=n?attr(n.xml,'MeasureName')||attr(n.xml,'measureName'):'';
+ var c=el('span','ix-measure',m);
+ if(m)c.title=m;
+ return c;
+}
+function amountCell(n){
+ var amount=n?attr(n.xml,'Amount')||attr(n.xml,'amount'):'';
+ var c=el('span','ix-amount',n?(amount||'—'):'');
+ if(n)c.title='Amount: '+(amount||'не указан');
+ return c;
+}
+function renderRow(row,i,isSel){
+ var line=el('div','ix-node'+(isSel?' selected':''));
+ line.dataset.i=i;
+ line.style.paddingLeft=(row.depth*18+6)+'px';
+ line.setAttribute('role','treeitem');
+ if(row.kind!=='group'&&rowObjectId(row))line.title='Двойной клик — открыть в IPS (ObjectID '+rowObjectId(row)+')';
+ line.setAttribute('aria-level',row.depth+1);
+ if(row.hasKids)line.setAttribute('aria-expanded',isOpen(row)?'true':'false');
+ line.appendChild(el('span','ix-exp'+(row.hasKids?' has':''),row.hasKids?(isOpen(row)?'−':'+'):''));
+ if(row.kind==='group'){
+  var isOrderGroup=row.tk.indexOf('order:')===0,t=isOrderGroup?row.tk.slice(6):row.tk;
+  line.classList.add('ix-group');if(isOrderGroup)line.classList.add('ix-group-order');
+  line.appendChild(iconEl(t));
+  line.appendChild(el('span','ix-label',(isOrderGroup?'Заказы · ':'')+(TYPES[t]?TYPES[t].name:'Тип '+t)));
+  line.appendChild(el('span','ix-count','('+row.count+')'));
+  line.appendChild(amountCell(null));line.appendChild(measureCell(null));
+ }else if(row.kind==='node'){
+  var n=row.node;
+  if(n.isOrder)line.classList.add(n.parent?'ix-order-nested':'ix-order-root');
+  line.appendChild(iconEl(n.type));
+  var nameEl=highlighted(n.name,'ix-label');if(line.title)nameEl.title=n.name+'\n'+line.title;line.appendChild(nameEl);
+  if(n.children.length)line.appendChild(el('span','ix-count','('+n.children.length+')'));
+  line.appendChild(amountCell(n));line.appendChild(measureCell(n));
+ }else{
+  var x=row.xml,name=attr(x,'FullName')||attr(x,'Name'),lbl=el('span','ix-label');
+  lbl.appendChild(highlighted('<'+x.tagName+'>','ix-tag'));
+  if(name){lbl.appendChild(document.createTextNode(' '));lbl.appendChild(highlighted(name,''))}
+  lbl.title='<'+x.tagName+'>'+(name?' '+name:'');
+  line.appendChild(lbl);
+  if(row.hasKids)line.appendChild(el('span','ix-count','('+x.children.length+')'));
+ }
+ return line;
+}
+
+/* ======================= icons ======================= */
+// Each URL is loaded once. Until it loads (or if it fails) a coloured badge is shown;
+// on success the image replaces it inside the same fixed 18x18 box, so nothing shifts.
+var iconState=new Map();
+function ensureIcon(url){
+ var s=iconState.get(url);if(s)return s;
+ iconState.set(url,'loading');
+ var img=new Image();
+ img.onload=function(){iconState.set(url,'ok');scheduleRender(true)};
+ img.onerror=function(){iconState.set(url,'fail');scheduleRender(true)};
+ img.src=url;
+ return 'loading';
+}
+function iconEl(type){
+ var box=el('span','ix-ico'),t=TYPES[type],url=iconUrls[type];
+ box.title=t?t.name:'Тип '+(type||'не указан');
+ var st=url?ensureIcon(url):'fail';
+ if(st==='ok'){var img=document.createElement('img');img.src=url;img.alt='';img.decoding='async';box.appendChild(img)}
+ else{box.classList.add('ix-ico-badge');box.style.background=t?t.color:'#94a3b8';box.textContent=t?t.abbr:'?'}
+ return box;
+}
+
+/* ======================= details panel ======================= */
+function showDetail(x,n){
+ var box=$('[data-part=detail]');box.replaceChildren();
+ if(!x){box.appendChild(el('div','ix-empty','Выберите узел слева.'));return}
+ box.appendChild(el('div','ix-detail-head',n?n.name:label(x)));
+ if(n){
+  var chain=[];for(var p=n;p;p=p.parent)chain.unshift((p.isOrder?'Order: ':'')+p.name);
+  box.appendChild(el('div','ix-path',chain.join(' → ')));
+  if(n.isOrder)box.appendChild(el('div','ix-order-note',n.parent?'Вложенный Order — состав принадлежит этому заказу внутри родительского изделия.':'Корневой Order — самостоятельный заказ верхнего уровня.'));
+ }
+ if(!x.attributes.length){box.appendChild(el('div','ix-empty','У узла нет атрибутов.'));return}
+ var t=el('table','ix-attrs');
+ Array.prototype.forEach.call(x.attributes,function(a){var tr=el('tr');tr.appendChild(el('th','',a.name));tr.appendChild(el('td','',a.value||'—'));t.appendChild(tr)});
+ box.appendChild(t);
+}
+function selectedXml(){
+ var k=selection[view];if(!k)return null;
+ if(view==='xml')return k;
+ var n=typeof k==='string'&&k.charAt(0)==='n'?nodeById.get(+k.slice(1)):null;
+ return n?n.xml:null;
+}
+function updateDetail(){
+ if(view==='source'||root.classList.contains('ix-no-attrs'))return;
+ var x=selectedXml();
+ if(x)showDetail(x,nodeByXml.get(x));
+ else if(view==='xml'||!selection.ips||selection.ips.charAt(0)!=='g')showDetail(null);
+}
+function rowIndexOf(key){for(var i=0;i<rows.length;i++)if(rows[i].key===key)return i;return -1}
+function select(i,scroll){
+ var row=rows[i];if(!row)return;
+ selection[view]=row.key;
+ updateDetail();
+ if(scroll)ensureVisible(i);
+ scheduleRender(true);
+}
+function ensureVisible(i){
+ var head=scroller.querySelector('.ix-heading'),hh=head?head.offsetHeight:0;
+ var y=treeHost.offsetTop+i*ROW_H;
+ if(y-hh<scroller.scrollTop)scroller.scrollTop=y-hh;
+ else if(y+ROW_H>scroller.scrollTop+scroller.clientHeight)scroller.scrollTop=y+ROW_H-scroller.clientHeight;
+}
+
+/* ======================= tree interaction ======================= */
+function clickToggles(){return compactMode&&root.classList.contains('ix-no-attrs')}
+function rowFromEvent(e){
+ var line=e.target.closest&&e.target.closest('.ix-node');
+ if(!line||!treeHost.contains(line))return -1;
+ return +line.dataset.i;
+}
+// Double click is detected manually: in compact view the first click re-renders the row,
+// so the browser's own dblclick event would not fire there.
+var DBL_MS=400,lastClick={key:null,t:0};
+treeHost.addEventListener('click',function(e){
+ var i=rowFromEvent(e),row=rows[i];if(!row)return;
+ var onToggle=!!e.target.closest('.ix-exp'),now=Date.now();
+ var isDouble=!onToggle&&row.kind!=='group'&&lastClick.key===row.key&&now-lastClick.t<DBL_MS;
+ lastClick=isDouble?{key:null,t:0}:{key:row.key,t:now};
+ if(isDouble){onDoubleClick(row);return}
+ select(i,false);
+ // groups, the +/- box and (compact view without attributes) any row toggle on single click
+ if(row.kind==='group'||onToggle||clickToggles())toggle(row);
+});
+// Double click on an object opens it in IPS (ips://object/<ObjectID>).
+// Double click never expands/collapses (handled from the click listener below, see onDoubleClick).
+// ObjectID of a node: attribute ObjectID (any case), then <ObjectID> child element,
+// then other common id attribute names (Object_ID, IpsObjectID, ObjID, Id).
+var ID_ATTRS=['objectid','object_id','ipsobjectid','objid','id'];
+function objectIdOf(x){
+ var id=xmlOrderId(x);if(id)return id;
+ for(var c=x.firstElementChild;c;c=c.nextElementSibling)if(c.localName.toLowerCase()==='objectid'&&c.textContent.trim())return normalizeId(c.textContent);
+ var a=x.attributes;
+ for(var k=1;k<ID_ATTRS.length;k++)for(var i=0;i<a.length;i++)
+  if(String(a[i].localName||a[i].name).toLowerCase()===ID_ATTRS[k]&&a[i].value.trim())return normalizeId(a[i].value);
+ return '';
+}
+function rowObjectId(row){var x=row.kind==='node'?row.node.xml:row.kind==='xml'?row.xml:null;return x?objectIdOf(x):''}
+function openInIps(id){
+ var a=document.createElement('a');a.href=IPS_OBJECT_URL+encodeURIComponent(id);a.style.display='none';
+ root.appendChild(a);a.click();a.remove();
+ status('Открываем в IPS: '+IPS_OBJECT_URL+id);
+}
+function onDoubleClick(row){
+ if(window.getSelection)try{window.getSelection().removeAllRanges()}catch(err){}
+ if(clickToggles()&&row.hasKids)toggle(row); // undo the expand/collapse made by the first click
+ var id=rowObjectId(row);
+ if(id)openInIps(id);
+ else{
+  var x=row.kind==='node'?row.node.xml:row.xml,names=Array.prototype.map.call(x.attributes,function(a){return a.name}).join(', ');
+  status('У узла <'+x.tagName+'> нет ObjectID — ссылку в IPS открыть нельзя. Атрибуты узла: '+(names||'нет'),true);
+ }
+}
+scroller.addEventListener('scroll',function(){scheduleRender(false)},{passive:true});
+scroller.addEventListener('keydown',function(e){
+ if(!rows.length)return;
+ var i=rowIndexOf(selection[view]),row=rows[i];
+ switch(e.key){
+  case 'ArrowDown':select(Math.min(rows.length-1,i+1),true);break;
+  case 'ArrowUp':select(Math.max(0,i<0?0:i-1),true);break;
+  case 'Home':select(0,true);break;
+  case 'End':select(rows.length-1,true);break;
+  case 'PageDown':select(Math.min(rows.length-1,Math.max(i,0)+Math.floor(scroller.clientHeight/ROW_H)),true);break;
+  case 'PageUp':select(Math.max(0,i-Math.floor(scroller.clientHeight/ROW_H)),true);break;
+  case 'ArrowRight':if(!row)return select(0,true);if(row.hasKids&&!isOpen(row))setOpen(row,true);else if(row.hasKids)select(i+1,true);break;
+  case 'ArrowLeft':if(!row)return;if(row.hasKids&&isOpen(row))setOpen(row,false);else if(row.parent>=0)select(row.parent,true);break;
+  case 'Enter':case ' ':if(row)toggle(row);break;
+  default:return;
+ }
+ e.preventDefault();
+});
+if(typeof ResizeObserver==='function')new ResizeObserver(function(){scheduleRender(true)}).observe(scroller);
+else window.addEventListener('resize',function(){scheduleRender(true)});
+
+/* ======================= tabs / summary / parse ======================= */
+function updateSummary(){
+ var host=$('[data-part=summary]');host.replaceChildren();if(!xmlDoc)return;
+ var rootOrders=0,nested=0,materials=0,maxDepth=0;
+ nodes.forEach(function(n){if(n.isOrder){if(n.parent)nested++;else rootOrders++}if(n.type==='1128'||n.type==='1125')materials++;if(n.depth>maxDepth)maxDepth=n.depth});
+ [['Заказов в корне',rootOrders,''],['Вложенных заказов',nested,'ix-stat-nested'],['Материалов',materials,''],['Всего позиций',nodes.length,''],['Глубина',nodes.length?maxDepth+1:0,'']].forEach(function(s){
+  var e=el('span','ix-stat'+(s[2]?' '+s[2]:''));e.appendChild(el('span','',s[0]+':'));e.appendChild(el('strong','',String(s[1])));host.appendChild(e);
+ });
+}
+function loadedText(){
+ if(orderObjectId)return activeOrderXml?'Показан только '+(isOrderXml(activeOrderXml)?'Order':'объект')+' с ObjectID='+orderObjectId+'; позиций в составе: '+nodes.length:'Объект с ObjectID='+orderObjectId+' не найден в XML. Другие заказы скрыты.';
+ return 'Загружено: '+roots.length+' корневых объектов, '+nodes.length+' объектов всего; вложенных заказов: '+nodes.filter(function(n){return n.isOrder&&n.parent}).length;
+}
+function parse(text){
+ var d=new DOMParser().parseFromString(text,'application/xml'),err=d.getElementsByTagName('parsererror')[0];
+ if(err){status('Ошибка XML: '+err.textContent.trim().slice(0,300),true);return false}
+ xmlDoc=d;raw=text;xmlHay=new WeakMap();build();
+ sourceBox.value=sourceViewText();
+ view='ips';switchTab();
+ status(loadedText(),!!orderObjectId&&!activeOrderXml);
+ return true;
+}
+function switchTab(){
+ if(compactMode)view='ips';
+ $$('[data-tab]').forEach(function(b){b.classList.toggle('active',b.dataset.tab===view)});
+ $('[data-part=layout]').classList.toggle('ix-hidden',view==='source');
+ $('[data-part=editor]').style.display=view==='source'?'block':'none';
+ $('[data-part=tree-title]').textContent=view==='xml'?'Дерево XML':'Структура изделий';
+ $('[data-act=group-type]').disabled=view!=='ips';
+ if(view==='source'){if(raw&&!sourceBox.value)sourceBox.value=sourceViewText();return}
+ if(view==='xml'&&!selection.xml&&xmlTop())selection.xml=xmlTop();
+ scroller.scrollTop=0;
+ refresh();
+ updateDetail();
+}
+
+/* ======================= source tab ======================= */
+function copy(s){if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(s).then(function(){status('Скопировано в буфер обмена')},function(){fallbackCopy(s)});else fallbackCopy(s)}
+function fallbackCopy(s){var t=el('textarea');t.value=s;t.style.position='fixed';t.style.opacity='0';root.appendChild(t);t.select();try{document.execCommand('copy');status('Скопировано в буфер обмена')}catch(e){status('Не удалось скопировать',true)}t.remove()}
+function escAttr(v){return v.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/\r?\n/g,'&#10;')}
+function escText(v){return v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function formatXml(xml){
+ var doc=new DOMParser().parseFromString(xml,'application/xml');
+ if(doc.getElementsByTagName('parsererror').length)return xml;
+ var lines=[];
+ function rec(n,d){
+  var pad='  '.repeat(d);
+  if(n.nodeType===1){
+   var attrs=Array.prototype.map.call(n.attributes,function(a){return ' '+a.name+'="'+escAttr(a.value)+'"'}).join('');
+   var kids=Array.prototype.filter.call(n.childNodes,function(c){return c.nodeType===1||c.nodeType===4||c.nodeType===8||(c.nodeType===3&&c.nodeValue.trim())});
+   if(!kids.length){lines.push(pad+'<'+n.tagName+attrs+' />');return}
+   if(kids.length===1&&kids[0].nodeType===3){lines.push(pad+'<'+n.tagName+attrs+'>'+escText(kids[0].nodeValue.trim())+'</'+n.tagName+'>');return}
+   lines.push(pad+'<'+n.tagName+attrs+'>');kids.forEach(function(c){rec(c,d+1)});lines.push(pad+'</'+n.tagName+'>');
+  }else if(n.nodeType===3)lines.push(pad+escText(n.nodeValue.trim()));
+  else if(n.nodeType===4)lines.push(pad+'<![CDATA['+n.nodeValue+']]>');
+  else if(n.nodeType===8)lines.push(pad+'<!--'+n.nodeValue+'-->');
+ }
+ rec(doc.documentElement,0);
+ return '<?xml version="1.0" encoding="UTF-8"?>\n'+lines.join('\n');
+}
+
+/* ======================= toolbar wiring ======================= */
+$('[data-act=file]').addEventListener('change',function(e){
+ if(contextFilePresent)return;var f=e.target.files[0];if(!f)return;
+ var reader=new FileReader();
+ loading('Читаем файл',f.name);
+ reader.onload=function(){loading('Разбираем структуру XML','Строим дерево объектов и группы');afterPaint().then(function(){parse(String(reader.result))}).finally(loadingDone)};
+ reader.onerror=function(){loadingDone();status('Ошибка чтения файла',true)};
+ reader.readAsText(f);e.target.value='';
+});
+$('[data-act=paste]').onclick=function(){if(contextFilePresent)return;view='source';switchTab();sourceBox.focus()};
+var searchTimer=0;
+$('[data-act=search]').addEventListener('input',function(e){
+ var v=e.target.value.trim().toLowerCase();
+ clearTimeout(searchTimer);
+ searchTimer=setTimeout(function(){applySearch(v)},v?SEARCH_DELAY:0);
+});
+$('[data-act=group-type]').onchange=function(e){groupByType=e.target.checked;refresh()};
+$('[data-act=expand]').onclick=expandAll;
+$('[data-act=collapse]').onclick=collapseAll;
 $$('[data-tab]').forEach(function(b){b.onclick=function(){view=b.dataset.tab;switchTab()}});
-$('[data-act=apply-source]').onclick=function(){if(!contextFilePresent)parse($('[data-part=source]').value)};$('[data-act=format]').onclick=function(){if(!contextFilePresent)$('[data-part=source]').value=formatXml($('[data-part=source]').value)};$('[data-act=copy-source]').onclick=function(){copy($('[data-part=source]').value)};
-$('[data-act=copy-attrs]').onclick=function(){var x=view==='ips'&&selected?selected.xml:null;if(!x)return;copy(Array.prototype.map.call(x.attributes,function(a){return a.name+'\t'+a.value}).join('\n'))};
-var grid=$('[data-part=icon-grid]');Object.keys(types).forEach(function(k){var w=el('div','ix-setting'),l=el('label','',k),i=el('input');i.type='url';i.placeholder=types[k][0]+' — URL';i.dataset.icon=k;i.value=iconUrls[k];w.appendChild(l);w.appendChild(i);grid.appendChild(w)});
-$('[data-act=icons]').onclick=function(){$('[data-part=settings]').style.display=$('[data-part=settings]').style.display==='block'?'none':'block'};
-$('[data-act=save-icons]').onclick=function(){$$('[data-icon]').forEach(function(i){iconUrls[i.dataset.icon]=i.value.trim()});$('[data-part=settings]').style.display='none';if(view==='ips')drawIps();status('Ссылки на иконки применены для текущей страницы')};
+$('[data-act=apply-source]').onclick=function(){if(!contextFilePresent)parse(sourceBox.value)};
+$('[data-act=format]').onclick=function(){if(!contextFilePresent)sourceBox.value=formatXml(sourceBox.value)};
+$('[data-act=copy-source]').onclick=function(){copy(sourceBox.value)};
+$('[data-act=copy-attrs]').onclick=function(){var x=selectedXml();if(!x)return;copy(Array.prototype.map.call(x.attributes,function(a){return a.name+'\t'+a.value}).join('\n'))};
+
+var grid=$('[data-part=icon-grid]');
+Object.keys(TYPES).forEach(function(k){var w=el('div','ix-setting'),l=el('label','',k),i=el('input');i.type='url';i.placeholder=TYPES[k].name+' — URL';i.dataset.icon=k;i.value=iconUrls[k]||'';w.appendChild(l);w.appendChild(i);grid.appendChild(w)});
+$('[data-act=icons]').onclick=function(){var s=$('[data-part=settings]');s.style.display=s.style.display==='block'?'none':'block'};
+function setIcon(k,url){url=String(url||'').trim();if(iconUrls[k]!==url){iconUrls[k]=url;if(url)iconState.delete(url)}}
+$('[data-act=save-icons]').onclick=function(){
+ $$('[data-icon]').forEach(function(i){setIcon(i.dataset.icon,i.value)});
+ $('[data-part=settings]').style.display='none';scheduleRender(true);
+ status('Ссылки на иконки применены для текущей страницы');
+};
+
+/* ======================= ELMA365 context ======================= */
 // Context.data.xml is a FileItemRef: the TSSDK template requests
 // a temporary URL and passes it as a Promise to the widget.
-function lockContextControls(){if(!contextFilePresent)return;var input=$('[data-act=file]'),label=input.closest('.ix-file'),paste=$('[data-act=paste]');input.disabled=true;label.classList.add('ix-disabled');label.setAttribute('aria-disabled','true');label.title='XML задан в Context.data.xml';paste.disabled=true;paste.title='XML задан в Context.data.xml';$('[data-part=source]').readOnly=true;$('[data-act=apply-source]').disabled=true;$('[data-act=format]').disabled=true}
-async function loadContextXml(){if(!contextFilePresent)return;loading('Подключаемся к ELMA365','Получаем ссылку на XML-файл');status('Получаем временную ссылку на XML из ELMA365...');try{if(!contextDownload)throw new Error('TSSDK не передал запрос ссылки');var result=await contextDownload;if(!result||!result.url)throw new Error(result&&result.error||'ELMA365 не вернула URL файла');loading('Скачиваем XML-файл','Время зависит от размера файла и скорости соединения');status('Загрузка XML из Context.data.xml...');var response=await fetch(result.url,{credentials:'same-origin',cache:'no-store'});if(!response.ok)throw new Error('HTTP '+response.status);var text=await response.text();if(!text.trim())throw new Error('Файл пуст');loading('Разбираем структуру XML','Строим дерево объектов и группы');await afterPaint();if(!parse(text))throw new Error('Невозможно разобрать XML');}catch(e){status('Ошибка загрузки Context.data.xml: '+(e&&e.message?e.message:String(e))+'. Если файл ещё не загружен в ELMA365, сохраните его и откройте карточку повторно.',true)}finally{loadingDone()}}
+function lockContextControls(){
+ if(!contextFilePresent)return;
+ var input=$('[data-act=file]'),lbl=input.closest('.ix-file'),paste=$('[data-act=paste]');
+ input.disabled=true;lbl.classList.add('ix-disabled');lbl.setAttribute('aria-disabled','true');lbl.title='XML задан в Context.data.xml';
+ paste.disabled=true;paste.title='XML задан в Context.data.xml';
+ sourceBox.readOnly=true;$('[data-act=apply-source]').disabled=true;$('[data-act=format]').disabled=true;
+}
+function showSourceSwitch(){
+ // Shown only when the РКД file is attached; a missing file's button is disabled.
+ var box=$('[data-part=sources]');box.classList.toggle('ix-hidden',!sourcePresent.rkd);
+ $$('[data-source]').forEach(function(b){
+  var src=b.dataset.source,present=sourcePresent[src];
+  b.textContent=SOURCE_INFO[src].label;
+  b.disabled=!present;
+  b.title=present?SOURCE_INFO[src].label+' ('+SOURCE_INFO[src].field+')':'Файл '+SOURCE_INFO[src].field+' не прикреплён';
+  b.classList.toggle('active',src===activeSource);
+  b.setAttribute('aria-pressed',src===activeSource?'true':'false');
+ });
+}
+function stashSourceView(){
+ if(!activeSource||!xmlDoc)return;
+ sourceView[activeSource]={openIps:query?savedOpenIps:openIps,openXml:query?savedOpenXml:openXml,selection:selection,scroll:scroller.scrollTop};
+}
+function restoreSourceView(src){
+ var st=sourceView[src];if(!st||query)return;
+ if(st.openIps)openIps=st.openIps;if(st.openXml)openXml=st.openXml;selection=st.selection;
+ refresh();scroller.scrollTop=st.scroll;scheduleRender(true);updateDetail();
+}
+function clearTree(){
+ xmlDoc=null;raw='';nodes=[];roots=[];nodeById=new Map();nodeByXml=new Map();activeOrderXml=null;
+ selection={ips:null,xml:null};sourceBox.value='';root.classList.remove('ix-has-measure');updateSummary();refresh();showDetail(null);
+}
+async function downloadSource(src){
+ var result=null;
+ if(src==='xml'&&contextDownload){result=await contextDownload;contextDownload=null}
+ if(!result||!result.url){
+  if(!contextSources[src])throw new Error('TSSDK не передал запрос ссылки');
+  result=await contextSources[src]();
+ }
+ if(!result||!result.url)throw new Error(result&&result.error||'ELMA365 не вернула URL файла');
+ loading('Скачиваем XML-файл ('+SOURCE_INFO[src].label+')','Время зависит от размера файла и скорости соединения');
+ var response=await fetch(result.url,{credentials:'same-origin',cache:'no-store'});
+ if(!response.ok&&contextSources[src]){ // temporary URL may have expired: ask for a fresh one once
+  var again=await contextSources[src]();
+  if(again&&again.url)response=await fetch(again.url,{credentials:'same-origin',cache:'no-store'});
+ }
+ if(!response.ok)throw new Error('HTTP '+response.status);
+ var text=await response.text();
+ if(!text.trim())throw new Error('Файл пуст');
+ return text;
+}
+async function loadSource(src){
+ if(!sourcePresent[src]||(src===activeSource&&xmlDoc))return;
+ stashSourceView();
+ activeSource=src;showSourceSwitch();
+ var info=SOURCE_INFO[src];
+ try{
+  var text=sourceText[src];
+  if(text==null){
+   clearTree();
+   loading('Подключаемся к ELMA365','Получаем ссылку на файл '+info.label);
+   status('Получаем временную ссылку на XML из '+info.field+'...');
+   text=await downloadSource(src);
+   sourceText[src]=text;
+  }
+  if(activeSource!==src)return; // the user switched to the other file meanwhile
+  loading('Разбираем структуру XML','Строим дерево объектов и группы');
+  await afterPaint();
+  if(activeSource!==src)return;
+  if(!parse(text)){clearTree();throw new Error('Невозможно разобрать XML')}
+  restoreSourceView(src);
+  if(query&&ipsMatch)status(info.label+': '+searchStatusText());
+  else if(sourcePresent.rkd)status(info.label+': '+loadedText(),!!orderObjectId&&!activeOrderXml);
+ }catch(e){
+  if(activeSource===src)status('Ошибка загрузки '+info.field+': '+(e&&e.message?e.message:String(e))+'. Если файл ещё не загружен в ELMA365, сохраните его и откройте карточку повторно.',true);
+ }finally{if(activeSource===src)loadingDone()}
+}
+$$('[data-source]').forEach(function(b){b.onclick=function(){loadSource(b.dataset.source)}});
+function loadContextXml(){if(contextFilePresent)return loadSource(sourcePresent.xml?'xml':'rkd')}
+
 // Публичный API для интеграции с ELMA365 / TSSDK: передайте строку XML из контекста карточки.
 // Пример: window.ELMA_IPS_XML_SET_XML(xmlString)
 window.ELMA_IPS_XML_SET_XML=function(value){return parse(String(value==null?'':value))};
 window.ELMA_IPS_XML_SET_OBJECTID=function(value){orderObjectId=normalizeId(value);if(raw)parse(raw);return !orderObjectId||!!activeOrderXml};
-window.ELMA_IPS_XML_SET_ICONS=function(mapping){Object.keys(mapping||{}).forEach(function(k){if(Object.prototype.hasOwnProperty.call(iconUrls,k))iconUrls[k]=String(mapping[k]||'')});$$('[data-icon]').forEach(function(i){i.value=iconUrls[i.dataset.icon]});if(view==='ips')drawIps()};
-if(compactMode)root.classList.add('ix-compact');lockContextControls();switchTab();initCompactSizing();if(compactMode&&!contextFilePresent)status('Для выбранного проекта или версии файл Context.data.xml не передан.',true);loadContextXml();
+// Switch the shown context file from code: 'xml' (состав) or 'rkd' (РКД).
+window.ELMA_IPS_XML_SET_SOURCE=function(src){return loadSource(src)};
+window.ELMA_IPS_XML_SET_ICONS=function(mapping){
+ Object.keys(mapping||{}).forEach(function(k){if(Object.prototype.hasOwnProperty.call(TYPES,k))setIcon(k,mapping[k])});
+ $$('[data-icon]').forEach(function(i){i.value=iconUrls[i.dataset.icon]||''});
+ scheduleRender(true);
+};
+
+/* ======================= layout: attributes panel & column width ======================= */
+// Saved per browser: whether the attributes panel is hidden and the tree column width (in %).
+var PREF_KEY='ips-xml-widget:layout';
+var prefs=(function(){try{return JSON.parse(localStorage.getItem(PREF_KEY))||{}}catch(e){return {}}})();
+function savePrefs(){try{localStorage.setItem(PREF_KEY,JSON.stringify(prefs))}catch(e){}}
+var layoutBox=$('[data-part=layout]'),splitter=$('[data-part=splitter]'),attrsBtn=$('[data-act=toggle-attrs]');
+var MIN_COL=200; // px, minimum width of either column
+function setAttrsVisible(visible){
+ if(!compactMode)prefs.hideAttrs=!visible; // compact view always starts hidden, nothing to remember
+ root.classList.toggle('ix-no-attrs',!visible);
+ attrsBtn.textContent=visible?'Скрыть атрибуты':'Показать атрибуты';
+ attrsBtn.setAttribute('aria-pressed',visible?'false':'true');
+ attrsBtn.classList.toggle('active',!visible);
+ if(visible)updateDetail();
+ scheduleRender(true);
+}
+function applyLeftPct(pct){
+ pct=Math.min(85,Math.max(15,pct));
+ layoutBox.style.setProperty('--ix-left-w',pct.toFixed(2)+'%');
+ splitter.setAttribute('aria-valuenow',String(Math.round(pct)));
+ prefs.leftPct=pct;
+}
+function setLeftPx(px){
+ var total=layoutBox.clientWidth;if(!total)return;
+ px=Math.min(Math.max(MIN_COL,total-MIN_COL-7),Math.max(MIN_COL,px));
+ applyLeftPct(px/total*100);
+}
+attrsBtn.onclick=function(){setAttrsVisible(root.classList.contains('ix-no-attrs'));savePrefs()};
+splitter.addEventListener('pointerdown',function(e){
+ if(e.button!==0)return;
+ e.preventDefault();
+ var startX=e.clientX,startW=scroller.getBoundingClientRect().width;
+ try{splitter.setPointerCapture(e.pointerId)}catch(err){}
+ root.classList.add('ix-resizing');
+ function move(ev){setLeftPx(startW+ev.clientX-startX)}
+ function up(){
+  splitter.removeEventListener('pointermove',move);splitter.removeEventListener('pointerup',up);splitter.removeEventListener('pointercancel',up);
+  root.classList.remove('ix-resizing');savePrefs();
+ }
+ splitter.addEventListener('pointermove',move);splitter.addEventListener('pointerup',up);splitter.addEventListener('pointercancel',up);
+});
+splitter.addEventListener('dblclick',function(){layoutBox.style.removeProperty('--ix-left-w');delete prefs.leftPct;splitter.removeAttribute('aria-valuenow');savePrefs()});
+splitter.addEventListener('keydown',function(e){
+ var step=e.shiftKey?60:20,w=scroller.getBoundingClientRect().width;
+ if(e.key==='ArrowLeft')setLeftPx(w-step);else if(e.key==='ArrowRight')setLeftPx(w+step);else return;
+ e.preventDefault();savePrefs();
+});
+if(typeof prefs.leftPct==='number')applyLeftPct(prefs.leftPct);
+// Compact (card) view: attributes are hidden automatically on every open, the button shows them.
+if(compactMode||prefs.hideAttrs)setAttrsVisible(false);
+
+if(compactMode)root.classList.add('ix-compact');
+lockContextControls();
+showSourceSwitch();
+switchTab();
+fitWidth();
+if(compactMode&&!contextFilePresent)status('Для выбранного проекта или версии файлы Context.data.xml / xml_rkd не переданы.',true);
+loadContextXml();
 })();
 </script>
 </div>
