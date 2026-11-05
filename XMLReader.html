@@ -1,15 +1,23 @@
 <%
 // FileItemRef: static URL requires a saved file.
-// Resolve temporary URL asynchronously and catch errors before rendering.
-var ipsXmlContextFile = Context.data.xml;
-window['ELMA_IPS_XML_CONTEXT_DOWNLOAD'] = ipsXmlContextFile
-  ? Promise.resolve().then(function(){return ipsXmlContextFile.getDownloadUrl('inline')})
-      .then(function(url){return {url:String(url||'')}})
-      .catch(function(err){return {error:String(err&&err.message||err)}})
-  : null;
+// Two context files: Context.data.xml (состав) and Context.data.xml_rkd (РКД).
+// For each one the widget gets a function that resolves a fresh temporary URL (errors are caught).
 // Reflect.get avoids TypeScript property errors for optional fields not declared on this specific form.
+var ipsXmlContextFile = Context.data.xml;
+var ipsRkdContextFile = Reflect.get(Context.data, 'xml_rkd');
+var ipsContextSources = {
+  xml: ipsXmlContextFile ? function(){return Promise.resolve().then(function(){return ipsXmlContextFile.getDownloadUrl('inline')})
+      .then(function(url){return {url:String(url||'')}})
+      .catch(function(err){return {error:String(err&&err.message||err)}})} : null,
+  rkd: ipsRkdContextFile ? function(){return Promise.resolve().then(function(){return ipsRkdContextFile.getDownloadUrl('inline')})
+      .then(function(url){return {url:String(url||'')}})
+      .catch(function(err){return {error:String(err&&err.message||err)}})} : null
+};
+window['ELMA_IPS_XML_CONTEXT_SOURCES'] = ipsContextSources;
+// The main file URL is requested right away (as before); РКД only when the user switches to it.
+window['ELMA_IPS_XML_CONTEXT_DOWNLOAD'] = ipsContextSources.xml ? ipsContextSources.xml() : null;
 var ipsCompactFields = ['objectid','project','Project','projectId','projectid','project_version','projectVersion','projectversion','version','Version','versionId','versionid'];
-var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) {
+var ipsCompactMode = !!ipsXmlContextFile || !!ipsRkdContextFile || ipsCompactFields.some(function(key) {
   var value = Reflect.get(Context.data, key);
   if (value == null || value === false || value === 0) return false;
   if (typeof value === 'string') return value.trim() !== '' && value.trim() !== '0';
@@ -19,6 +27,7 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
 %>
 <div id="ips-xml-widget" class="ixw"
  data-elma-file-present="<%= Context.data.xml ? '1' : '0' %>"
+ data-elma-rkd-present="<%= ipsRkdContextFile ? '1' : '0' %>"
  data-elma-compact="<%= ipsCompactMode ? '1' : '0' %>"
  data-elma-objectid="<%= Context.data.objectid == null ? '' : Context.data.objectid %>">
 <style>
@@ -42,6 +51,12 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
 #ips-xml-widget .ix-file.ix-disabled{pointer-events:none;background:#94a3b8}
 #ips-xml-widget .ix-search{min-width:130px;flex:1;padding:7px 9px;border:1px solid #cbd5e1;border-radius:5px}
 #ips-xml-widget .ix-group-toggle{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer;user-select:none}
+/* file switch (Состав / РКД): segmented buttons */
+#ips-xml-widget .ix-sources{display:inline-flex;flex:none}
+#ips-xml-widget .ix-sources button{border-radius:0;margin-left:-1px;white-space:nowrap}
+#ips-xml-widget .ix-sources button:first-child{border-radius:5px 0 0 5px;margin-left:0}
+#ips-xml-widget .ix-sources button:last-child{border-radius:0 5px 5px 0}
+#ips-xml-widget .ix-sources button.active{position:relative;z-index:1;font-weight:700}
 #ips-xml-widget .ix-tabs{display:flex;gap:4px;padding:7px 10px;border-bottom:1px solid #dce4ed}
 
 /* ---------- summary ---------- */
@@ -129,7 +144,7 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
 #ips-xml-widget.ix-compact{display:flex;flex-direction:column;width:100%!important;max-width:none!important;min-width:0;min-height:0;height:clamp(380px,68vh,900px);align-self:stretch;justify-self:stretch}
 #ips-xml-widget.ix-compact .ix-loading{flex:none}
 #ips-xml-widget.ix-compact .ix-toolbar{padding:8px}
-#ips-xml-widget.ix-compact .ix-toolbar > :not(.ix-search):not([data-act=expand]):not([data-act=collapse]):not([data-act=toggle-attrs]):not(.ix-group-toggle){display:none!important}
+#ips-xml-widget.ix-compact .ix-toolbar > :not(.ix-search):not([data-act=expand]):not([data-act=collapse]):not([data-act=toggle-attrs]):not(.ix-group-toggle):not(.ix-sources){display:none!important}
 #ips-xml-widget.ix-compact .ix-toolbar button{flex:0 0 auto;white-space:nowrap}
 #ips-xml-widget.ix-compact .ix-search{min-width:110px;width:100%;flex:1}
 #ips-xml-widget.ix-compact .ix-tabs,#ips-xml-widget.ix-compact .ix-summary,#ips-xml-widget.ix-compact .ix-editor,#ips-xml-widget.ix-compact .ix-settings{display:none!important}
@@ -157,7 +172,7 @@ var ipsCompactMode = !!ipsXmlContextFile || ipsCompactFields.some(function(key) 
  #ips-xml-widget.ix-compact .ix-amount,#ips-xml-widget.ix-compact .ix-amount-head{flex-basis:78px;max-width:78px}
 }
 </style>
-<div class="ix-toolbar"><label class="ix-file">Открыть XML<input type="file" accept=".xml,text/xml,application/xml" data-act="file"></label><button type="button" data-act="paste">Вставить XML</button><input class="ix-search" type="search" placeholder="Поиск по структуре и атрибутам..." data-act="search"><label class="ix-group-toggle"><input type="checkbox" data-act="group-type" checked> Группировать по типу</label><button type="button" data-act="expand">Развернуть</button><button type="button" data-act="collapse">Свернуть</button><button type="button" data-act="icons">Иконки</button><button type="button" data-act="toggle-attrs" aria-pressed="false">Скрыть атрибуты</button></div>
+<div class="ix-toolbar"><div class="ix-sources ix-hidden" data-part="sources" role="group" aria-label="Файл XML"><button type="button" data-source="xml" title="Context.data.xml">Состав</button><button type="button" data-source="rkd" title="Context.data.xml_rkd">РКД</button></div><label class="ix-file">Открыть XML<input type="file" accept=".xml,text/xml,application/xml" data-act="file"></label><button type="button" data-act="paste">Вставить XML</button><input class="ix-search" type="search" placeholder="Поиск по структуре и атрибутам..." data-act="search"><label class="ix-group-toggle"><input type="checkbox" data-act="group-type" checked> Группировать по типу</label><button type="button" data-act="expand">Развернуть</button><button type="button" data-act="collapse">Свернуть</button><button type="button" data-act="icons">Иконки</button><button type="button" data-act="toggle-attrs" aria-pressed="false">Скрыть атрибуты</button></div>
 <div class="ix-loading ix-hidden" data-part="loading" role="status" aria-live="polite" aria-busy="false"><span class="ix-spinner" aria-hidden="true"></span><div class="ix-loading-text"><span data-part="loading-label">Загрузка XML...</span><small data-part="loading-hint">Пожалуйста, не закрывайте читалку</small></div></div>
 <div class="ix-settings" data-part="settings"><div style="margin-bottom:8px">URL изображений для ObjectType. Ссылки должны быть доступны браузеру пользователя.</div><div class="ix-settings-grid" data-part="icon-grid"></div><div style="margin-top:9px"><button type="button" data-act="save-icons">Применить иконки</button></div></div>
 <div class="ix-tabs"><button type="button" class="active" data-tab="ips">Структура IPS</button><button type="button" data-tab="xml">XML-дерево</button><button type="button" data-tab="source">Исходный XML</button></div>
@@ -205,8 +220,14 @@ var savedOpenIps=null,savedOpenXml=null;          // expansion before search, re
 var rows=[];                                      // flattened visible rows of the current view
 var selection={ips:null,xml:null};                // selected row key per view
 var renderedRange=null;                           // [start,end] currently in DOM
-var contextFilePresent=root.dataset.elmaFilePresent==='1';
-var contextDownload=window['ELMA_IPS_XML_CONTEXT_DOWNLOAD'];
+var SOURCE_INFO={xml:{label:'Состав',field:'Context.data.xml'},rkd:{label:'РКД',field:'Context.data.xml_rkd'}};
+var sourcePresent={xml:root.dataset.elmaFilePresent==='1',rkd:root.dataset.elmaRkdPresent==='1'};
+var contextFilePresent=sourcePresent.xml||sourcePresent.rkd;
+var contextSources=window['ELMA_IPS_XML_CONTEXT_SOURCES']||{};
+var contextDownload=window['ELMA_IPS_XML_CONTEXT_DOWNLOAD']; // pre-requested URL of the main file (used once)
+var activeSource=null;      // 'xml' | 'rkd' — which context file is shown
+var sourceText={};          // downloaded XML text per source (downloaded once)
+var sourceView={};          // tree state per source: expanded rows, selection, scroll
 var orderObjectId=normalizeId(root.dataset.elmaObjectid);
 var compactMode=root.dataset.elmaCompact==='1';
 
@@ -376,6 +397,10 @@ function computeSearch(){
   });
  }
 }
+function searchStatusText(){
+ var found=view==='xml'?xmlMatch.size:ipsMatch.size;
+ return found?'Найдено совпадений: '+found+'; показаны совпадения и их родители':'Совпадений не найдено';
+}
 function applySearch(q){
  if(q===query)return;
  if(q&&!query){savedOpenIps=openIps;savedOpenXml=openXml}
@@ -391,8 +416,7 @@ function applySearch(q){
  computeSearch();
  scroller.scrollTop=0;
  refresh();
- var found=view==='xml'?xmlMatch.size:ipsMatch.size;
- status(found?'Найдено совпадений: '+found+'; показаны совпадения и их родители':'Совпадений не найдено');
+ status(searchStatusText());
 }
 
 /* ======================= flatten tree -> rows ======================= */
@@ -752,32 +776,84 @@ function lockContextControls(){
  paste.disabled=true;paste.title='XML задан в Context.data.xml';
  sourceBox.readOnly=true;$('[data-act=apply-source]').disabled=true;$('[data-act=format]').disabled=true;
 }
-async function loadContextXml(){
- if(!contextFilePresent)return;
- loading('Подключаемся к ELMA365','Получаем ссылку на XML-файл');
- status('Получаем временную ссылку на XML из ELMA365...');
+function showSourceSwitch(){
+ // Shown only when the РКД file is attached; a missing file's button is disabled.
+ var box=$('[data-part=sources]');box.classList.toggle('ix-hidden',!sourcePresent.rkd);
+ $$('[data-source]').forEach(function(b){
+  var src=b.dataset.source,present=sourcePresent[src];
+  b.disabled=!present;
+  b.title=present?SOURCE_INFO[src].field:'Файл '+SOURCE_INFO[src].field+' не прикреплён';
+  b.classList.toggle('active',src===activeSource);
+  b.setAttribute('aria-pressed',src===activeSource?'true':'false');
+ });
+}
+function stashSourceView(){
+ if(!activeSource||!xmlDoc)return;
+ sourceView[activeSource]={openIps:query?savedOpenIps:openIps,openXml:query?savedOpenXml:openXml,selection:selection,scroll:scroller.scrollTop};
+}
+function restoreSourceView(src){
+ var st=sourceView[src];if(!st||query)return;
+ if(st.openIps)openIps=st.openIps;if(st.openXml)openXml=st.openXml;selection=st.selection;
+ refresh();scroller.scrollTop=st.scroll;scheduleRender(true);updateDetail();
+}
+function clearTree(){
+ xmlDoc=null;raw='';nodes=[];roots=[];nodeById=new Map();nodeByXml=new Map();activeOrderXml=null;
+ selection={ips:null,xml:null};sourceBox.value='';updateSummary();refresh();showDetail(null);
+}
+async function downloadSource(src){
+ var result=null;
+ if(src==='xml'&&contextDownload){result=await contextDownload;contextDownload=null}
+ if(!result||!result.url){
+  if(!contextSources[src])throw new Error('TSSDK не передал запрос ссылки');
+  result=await contextSources[src]();
+ }
+ if(!result||!result.url)throw new Error(result&&result.error||'ELMA365 не вернула URL файла');
+ loading('Скачиваем XML-файл ('+SOURCE_INFO[src].label+')','Время зависит от размера файла и скорости соединения');
+ var response=await fetch(result.url,{credentials:'same-origin',cache:'no-store'});
+ if(!response.ok&&contextSources[src]){ // temporary URL may have expired: ask for a fresh one once
+  var again=await contextSources[src]();
+  if(again&&again.url)response=await fetch(again.url,{credentials:'same-origin',cache:'no-store'});
+ }
+ if(!response.ok)throw new Error('HTTP '+response.status);
+ var text=await response.text();
+ if(!text.trim())throw new Error('Файл пуст');
+ return text;
+}
+async function loadSource(src){
+ if(!sourcePresent[src]||(src===activeSource&&xmlDoc))return;
+ stashSourceView();
+ activeSource=src;showSourceSwitch();
+ var info=SOURCE_INFO[src];
  try{
-  if(!contextDownload)throw new Error('TSSDK не передал запрос ссылки');
-  var result=await contextDownload;
-  if(!result||!result.url)throw new Error(result&&result.error||'ELMA365 не вернула URL файла');
-  loading('Скачиваем XML-файл','Время зависит от размера файла и скорости соединения');
-  status('Загрузка XML из Context.data.xml...');
-  var response=await fetch(result.url,{credentials:'same-origin',cache:'no-store'});
-  if(!response.ok)throw new Error('HTTP '+response.status);
-  var text=await response.text();
-  if(!text.trim())throw new Error('Файл пуст');
+  var text=sourceText[src];
+  if(text==null){
+   clearTree();
+   loading('Подключаемся к ELMA365','Получаем ссылку на файл '+info.label);
+   status('Получаем временную ссылку на XML из '+info.field+'...');
+   text=await downloadSource(src);
+   sourceText[src]=text;
+  }
+  if(activeSource!==src)return; // the user switched to the other file meanwhile
   loading('Разбираем структуру XML','Строим дерево объектов и группы');
   await afterPaint();
-  if(!parse(text))throw new Error('Невозможно разобрать XML');
+  if(activeSource!==src)return;
+  if(!parse(text)){clearTree();throw new Error('Невозможно разобрать XML')}
+  restoreSourceView(src);
+  if(query&&ipsMatch)status(info.label+': '+searchStatusText());
+  else if(sourcePresent.rkd)status(info.label+': '+loadedText(),!!orderObjectId&&!activeOrderXml);
  }catch(e){
-  status('Ошибка загрузки Context.data.xml: '+(e&&e.message?e.message:String(e))+'. Если файл ещё не загружен в ELMA365, сохраните его и откройте карточку повторно.',true);
- }finally{loadingDone()}
+  if(activeSource===src)status('Ошибка загрузки '+info.field+': '+(e&&e.message?e.message:String(e))+'. Если файл ещё не загружен в ELMA365, сохраните его и откройте карточку повторно.',true);
+ }finally{if(activeSource===src)loadingDone()}
 }
+$$('[data-source]').forEach(function(b){b.onclick=function(){loadSource(b.dataset.source)}});
+function loadContextXml(){if(contextFilePresent)return loadSource(sourcePresent.xml?'xml':'rkd')}
 
 // Публичный API для интеграции с ELMA365 / TSSDK: передайте строку XML из контекста карточки.
 // Пример: window.ELMA_IPS_XML_SET_XML(xmlString)
 window.ELMA_IPS_XML_SET_XML=function(value){return parse(String(value==null?'':value))};
 window.ELMA_IPS_XML_SET_OBJECTID=function(value){orderObjectId=normalizeId(value);if(raw)parse(raw);return !orderObjectId||!!activeOrderXml};
+// Switch the shown context file from code: 'xml' (состав) or 'rkd' (РКД).
+window.ELMA_IPS_XML_SET_SOURCE=function(src){return loadSource(src)};
 window.ELMA_IPS_XML_SET_ICONS=function(mapping){
  Object.keys(mapping||{}).forEach(function(k){if(Object.prototype.hasOwnProperty.call(TYPES,k))setIcon(k,mapping[k])});
  $$('[data-icon]').forEach(function(i){i.value=iconUrls[i.dataset.icon]||''});
@@ -837,9 +913,10 @@ if(compactMode||prefs.hideAttrs)setAttrsVisible(false);
 
 if(compactMode)root.classList.add('ix-compact');
 lockContextControls();
+showSourceSwitch();
 switchTab();
 fitWidth();
-if(compactMode&&!contextFilePresent)status('Для выбранного проекта или версии файл Context.data.xml не передан.',true);
+if(compactMode&&!contextFilePresent)status('Для выбранного проекта или версии файлы Context.data.xml / xml_rkd не переданы.',true);
 loadContextXml();
 })();
 </script>
