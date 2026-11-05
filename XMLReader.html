@@ -586,12 +586,16 @@ treeHost.addEventListener('click',function(e){
 });
 // Double click on an object opens it in IPS (ips://object/<ObjectID>).
 // Double click never expands/collapses (handled from the click listener below, see onDoubleClick).
-// ObjectID of a node: attribute ObjectID (any case), then <ObjectID> child element, then Id/ID attribute.
+// ObjectID of a node: attribute ObjectID (any case), then <ObjectID> child element,
+// then other common id attribute names (Object_ID, IpsObjectID, ObjID, Id).
+var ID_ATTRS=['objectid','object_id','ipsobjectid','objid','id'];
 function objectIdOf(x){
  var id=xmlOrderId(x);if(id)return id;
  for(var c=x.firstElementChild;c;c=c.nextElementSibling)if(c.localName.toLowerCase()==='objectid'&&c.textContent.trim())return normalizeId(c.textContent);
- var a=x.getAttribute('Id')||x.getAttribute('ID')||x.getAttribute('id');
- return a?normalizeId(a):'';
+ var a=x.attributes;
+ for(var k=1;k<ID_ATTRS.length;k++)for(var i=0;i<a.length;i++)
+  if(String(a[i].localName||a[i].name).toLowerCase()===ID_ATTRS[k]&&a[i].value.trim())return normalizeId(a[i].value);
+ return '';
 }
 function rowObjectId(row){var x=row.kind==='node'?row.node.xml:row.kind==='xml'?row.xml:null;return x?objectIdOf(x):''}
 function openInIps(id){
@@ -604,7 +608,10 @@ function onDoubleClick(row){
  if(clickToggles()&&row.hasKids)toggle(row); // undo the expand/collapse made by the first click
  var id=rowObjectId(row);
  if(id)openInIps(id);
- else status('У узла нет ObjectID — ссылку в IPS открыть нельзя',true);
+ else{
+  var x=row.kind==='node'?row.node.xml:row.xml,names=Array.prototype.map.call(x.attributes,function(a){return a.name}).join(', ');
+  status('У узла <'+x.tagName+'> нет ObjectID — ссылку в IPS открыть нельзя. Атрибуты узла: '+(names||'нет'),true);
+ }
 }
 scroller.addEventListener('scroll',function(){scheduleRender(false)},{passive:true});
 scroller.addEventListener('keydown',function(e){
