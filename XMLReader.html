@@ -585,9 +585,15 @@ treeHost.addEventListener('click',function(e){
  if(row.kind==='group'||onToggle||clickToggles())toggle(row);
 });
 // Double click on an object opens it in IPS (ips://object/<ObjectID>).
-// Objects without ObjectID keep the old behaviour: double click expands/collapses.
-// (handled from the click listener below, see onDoubleClick)
-function rowObjectId(row){var x=row.kind==='node'?row.node.xml:row.kind==='xml'?row.xml:null;return x?xmlOrderId(x):''}
+// Double click never expands/collapses (handled from the click listener below, see onDoubleClick).
+// ObjectID of a node: attribute ObjectID (any case), then <ObjectID> child element, then Id/ID attribute.
+function objectIdOf(x){
+ var id=xmlOrderId(x);if(id)return id;
+ for(var c=x.firstElementChild;c;c=c.nextElementSibling)if(c.localName.toLowerCase()==='objectid'&&c.textContent.trim())return normalizeId(c.textContent);
+ var a=x.getAttribute('Id')||x.getAttribute('ID')||x.getAttribute('id');
+ return a?normalizeId(a):'';
+}
+function rowObjectId(row){var x=row.kind==='node'?row.node.xml:row.kind==='xml'?row.xml:null;return x?objectIdOf(x):''}
 function openInIps(id){
  var a=document.createElement('a');a.href=IPS_OBJECT_URL+encodeURIComponent(id);a.style.display='none';
  root.appendChild(a);a.click();a.remove();
@@ -595,11 +601,10 @@ function openInIps(id){
 }
 function onDoubleClick(row){
  if(window.getSelection)try{window.getSelection().removeAllRanges()}catch(err){}
+ if(clickToggles()&&row.hasKids)toggle(row); // undo the expand/collapse made by the first click
  var id=rowObjectId(row);
- if(id){
-  if(clickToggles())toggle(row); // undo the toggle made by the first click
-  openInIps(id);
- }else toggle(row);              // no ObjectID: double click expands/collapses
+ if(id)openInIps(id);
+ else status('У узла нет ObjectID — ссылку в IPS открыть нельзя',true);
 }
 scroller.addEventListener('scroll',function(){scheduleRender(false)},{passive:true});
 scroller.addEventListener('keydown',function(e){
