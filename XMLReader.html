@@ -176,6 +176,7 @@ var ROW_H=26;          // must match .ix-node height in CSS
 var OVERSCAN=15;       // extra rows rendered above/below the viewport
 var SEARCH_DELAY=180;  // ms debounce for search input
 var XSI='http://www.w3.org/2001/XMLSchema-instance';
+var IPS_OBJECT_URL='ips://object/'; // double click on a node opens IPS_OBJECT_URL + ObjectID
 
 // ObjectType -> name, short badge text and colour (badge is used when no image URL is set or it fails to load).
 var TYPES={
@@ -470,6 +471,7 @@ function renderRow(row,i,isSel){
  line.dataset.i=i;
  line.style.paddingLeft=(row.depth*18+6)+'px';
  line.setAttribute('role','treeitem');
+ if(row.kind!=='group'&&rowObjectId(row))line.title='Двойной клик — открыть в IPS (ObjectID '+rowObjectId(row)+')';
  line.setAttribute('aria-level',row.depth+1);
  if(row.hasKids)line.setAttribute('aria-expanded',isOpen(row)?'true':'false');
  line.appendChild(el('span','ix-exp'+(row.hasKids?' has':''),row.hasKids?(isOpen(row)?'−':'+'):''));
@@ -484,7 +486,7 @@ function renderRow(row,i,isSel){
   var n=row.node;
   if(n.isOrder)line.classList.add(n.parent?'ix-order-nested':'ix-order-root');
   line.appendChild(iconEl(n.type));
-  line.appendChild(highlighted(n.name,'ix-label'));
+  var nameEl=highlighted(n.name,'ix-label');if(line.title)nameEl.title=n.name+'\n'+line.title;line.appendChild(nameEl);
   if(n.children.length)line.appendChild(el('span','ix-count','('+n.children.length+')'));
   line.appendChild(amountCell(n));
  }else{
@@ -569,18 +571,36 @@ function rowFromEvent(e){
  if(!line||!treeHost.contains(line))return -1;
  return +line.dataset.i;
 }
+// Double click is detected manually: in compact view the first click re-renders the row,
+// so the browser's own dblclick event would not fire there.
+var DBL_MS=400,lastClick={key:null,t:0};
 treeHost.addEventListener('click',function(e){
  var i=rowFromEvent(e),row=rows[i];if(!row)return;
- var onToggle=!!e.target.closest('.ix-exp');
+ var onToggle=!!e.target.closest('.ix-exp'),now=Date.now();
+ var isDouble=!onToggle&&row.kind!=='group'&&lastClick.key===row.key&&now-lastClick.t<DBL_MS;
+ lastClick=isDouble?{key:null,t:0}:{key:row.key,t:now};
+ if(isDouble){onDoubleClick(row);return}
  select(i,false);
  // groups, the +/- box and (compact view without attributes) any row toggle on single click
  if(row.kind==='group'||onToggle||clickToggles())toggle(row);
 });
-treeHost.addEventListener('dblclick',function(e){
- var i=rowFromEvent(e),row=rows[i];if(!row)return;
- if(row.kind==='group'||clickToggles()||e.target.closest('.ix-exp'))return;
- toggle(row);
-});
+// Double click on an object opens it in IPS (ips://object/<ObjectID>).
+// Objects without ObjectID keep the old behaviour: double click expands/collapses.
+// (handled from the click listener below, see onDoubleClick)
+function rowObjectId(row){var x=row.kind==='node'?row.node.xml:row.kind==='xml'?row.xml:null;return x?xmlOrderId(x):''}
+function openInIps(id){
+ var a=document.createElement('a');a.href=IPS_OBJECT_URL+encodeURIComponent(id);a.style.display='none';
+ root.appendChild(a);a.click();a.remove();
+ status('Открываем в IPS: '+IPS_OBJECT_URL+id);
+}
+function onDoubleClick(row){
+ if(window.getSelection)try{window.getSelection().removeAllRanges()}catch(err){}
+ var id=rowObjectId(row);
+ if(id){
+  if(clickToggles())toggle(row); // undo the toggle made by the first click
+  openInIps(id);
+ }else toggle(row);              // no ObjectID: double click expands/collapses
+}
 scroller.addEventListener('scroll',function(){scheduleRender(false)},{passive:true});
 scroller.addEventListener('keydown',function(e){
  if(!rows.length)return;
