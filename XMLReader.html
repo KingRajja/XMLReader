@@ -14,6 +14,13 @@ var ipsContextSources = {
       .catch(function(err){return {error:String(err&&err.message||err)}})} : null
 };
 window['ELMA_IPS_XML_CONTEXT_SOURCES'] = ipsContextSources;
+// Labels of the file switch buttons: Context.data.button_name_1 (xml) and button_name_2 (xml_rkd).
+var ipsButtonName1 = Reflect.get(Context.data, 'button_name_1');
+var ipsButtonName2 = Reflect.get(Context.data, 'button_name_2');
+window['ELMA_IPS_XML_BUTTON_NAMES'] = {
+  xml: ipsButtonName1 == null ? '' : String(ipsButtonName1).trim(),
+  rkd: ipsButtonName2 == null ? '' : String(ipsButtonName2).trim()
+};
 // The main file URL is requested right away (as before); РКД only when the user switches to it.
 window['ELMA_IPS_XML_CONTEXT_DOWNLOAD'] = ipsContextSources.xml ? ipsContextSources.xml() : null;
 var ipsCompactFields = ['objectid','project','Project','projectId','projectid','project_version','projectVersion','projectversion','version','Version','versionId','versionid'];
@@ -53,7 +60,7 @@ var ipsCompactMode = !!ipsXmlContextFile || !!ipsRkdContextFile || ipsCompactFie
 #ips-xml-widget .ix-group-toggle{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer;user-select:none}
 /* file switch (Состав / РКД): segmented buttons */
 #ips-xml-widget .ix-sources{display:inline-flex;flex:none}
-#ips-xml-widget .ix-sources button{border-radius:0;margin-left:-1px;white-space:nowrap}
+#ips-xml-widget .ix-sources button{border-radius:0;margin-left:-1px;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
 #ips-xml-widget .ix-sources button:first-child{border-radius:5px 0 0 5px;margin-left:0}
 #ips-xml-widget .ix-sources button:last-child{border-radius:0 5px 5px 0}
 #ips-xml-widget .ix-sources button.active{position:relative;z-index:1;font-weight:700}
@@ -220,7 +227,9 @@ var savedOpenIps=null,savedOpenXml=null;          // expansion before search, re
 var rows=[];                                      // flattened visible rows of the current view
 var selection={ips:null,xml:null};                // selected row key per view
 var renderedRange=null;                           // [start,end] currently in DOM
-var SOURCE_INFO={xml:{label:'Состав',field:'Context.data.xml'},rkd:{label:'РКД',field:'Context.data.xml_rkd'}};
+// Button labels come from Context.data.button_name_1 / button_name_2; defaults when empty.
+var buttonNames=window['ELMA_IPS_XML_BUTTON_NAMES']||{};
+var SOURCE_INFO={xml:{label:buttonNames.xml||'Состав',field:'Context.data.xml'},rkd:{label:buttonNames.rkd||'РКД',field:'Context.data.xml_rkd'}};
 var sourcePresent={xml:root.dataset.elmaFilePresent==='1',rkd:root.dataset.elmaRkdPresent==='1'};
 var contextFilePresent=sourcePresent.xml||sourcePresent.rkd;
 var contextSources=window['ELMA_IPS_XML_CONTEXT_SOURCES']||{};
@@ -781,8 +790,9 @@ function showSourceSwitch(){
  var box=$('[data-part=sources]');box.classList.toggle('ix-hidden',!sourcePresent.rkd);
  $$('[data-source]').forEach(function(b){
   var src=b.dataset.source,present=sourcePresent[src];
+  b.textContent=SOURCE_INFO[src].label;
   b.disabled=!present;
-  b.title=present?SOURCE_INFO[src].field:'Файл '+SOURCE_INFO[src].field+' не прикреплён';
+  b.title=present?SOURCE_INFO[src].label+' ('+SOURCE_INFO[src].field+')':'Файл '+SOURCE_INFO[src].field+' не прикреплён';
   b.classList.toggle('active',src===activeSource);
   b.setAttribute('aria-pressed',src===activeSource?'true':'false');
  });
